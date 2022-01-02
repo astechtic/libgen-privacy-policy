@@ -13,7 +13,7 @@ However, the app does use third-party services that may collect information used
 Link to the privacy policy of third-party service providers used by the app
 
 - [Google Play Services](https://policies.google.com/privacy)
-- [StartApp](https://www.start.io/policy/privacy-policy/)
+- [Unity](https://unity3d.com/legal/privacy-policy)
  
 Changes to This Privacy Policy
 We may update our Privacy Policy from time to time. Which is highly unlikely but if we do, you are advised to review this page periodically for any changes. We will notify you of any changes by posting the new Privacy Policy on this page.
