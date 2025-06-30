@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>libgen_api_script</title>
+</head>
+
+<body>
+<h1>libgen_api_script server working</h1>
+<script>
+    class AnnasArchive {
+
+        async searchBooks(query, siteDataArg) {
+            try {
+                if (!query || !siteDataArg) {
+                    throw new Error('Invalid input: query and siteDataArg are required');
+                }
+                const siteData = typeof siteDataArg === 'string'
+                    ? JSON.parse(siteDataArg)
+                    : siteDataArg;
+                const { primarySource, searchPath } = siteData;
+                if (!primarySource || !searchPath) {
+                    throw new Error('Invalid site data: missing primarySource or searchPath');
+                }
+                const url = `${primarySource}${searchPath.replace("{SEARCH_QUERY}", query)}`;
+                const apiCallMethod = { "url": url, "method": "GET", "runInIsolate": true };
+                const result = await window.flutter_inappwebview.callHandler('curlRequest', apiCallMethod);
+                if (result.statusCode !== 200) {
+                    console.warn(`Request failed with status code: ${result.statusCode}`);
+                    return null;
+                }
+
+                const decodedData = atob(result.data).replace(/<!--|\-->/g, '');
+                const parser = new DOMParser();
+                const document = parser.parseFromString(decodedData, 'text/html');
+                const bookElements = document.getElementsByClassName("js-vim-focus custom-a flex items-center");
+                const bookList = Array.from(bookElements)
+                    .map(element => {
+                        const titleElement = element.querySelector('h3');
+                        const imageElement = element.querySelector('img');
+                        const authorElements = element.getElementsByClassName('italic');
+                        const publisherElements = element.getElementsByClassName('truncate');
+                        const infoElements = element.getElementsByClassName('text-gray-500');
+                        const link = element.getAttribute('href');
+                        if (!link || !titleElement) return null;
+                        return {
+                            title: titleElement.textContent?.trim() || "",
+                            author: authorElements.length > 0 ? authorElements[0].textContent?.trim() : "",
+                            image: imageElement?.getAttribute('src') || "",
+                            link: `${primarySource}${link}`,
+                            bookIdMD5: link.split('/').pop(),
+                            publisher: publisherElements.length > 0
+                                ? (publisherElements[0].textContent?.trim() || "")
+                                : "",
+                            info: infoElements.length > 0
+                                ? infoElements[0].textContent?.trim()
+                                : "",
+                            source: "annasArchive"
+                        };
+                    })
+                    .filter(book => book && book.title);
+
+                return bookList;
+            } catch (error) {
+                console.error('Error in book search:', error);
+                if (error instanceof SyntaxError) {
+                    console.error('Parsing error:', error.message);
+                }
+                throw error;
+            }
+        }
+
+        getBookInfo(resData, url, baseUrl) {
+            let parser = new DOMParser();
+            let document = parser.parseFromString(atob(resData), "text/html");
+
+            // Ensure main is a single element, not a collection
+            let mainElements = document.getElementsByClassName("main");
+            let main = mainElements.length > 0 ? mainElements[0] : null;
+
+            if (!main) {
+                console.error("Main container not found");
+                return {};
+            }
+
+            let title = main.getElementsByClassName("text-3xl font-bold")[0]?.textContent || "";
+            let author = main.getElementsByClassName("italic")[0]?.textContent || "";
+            let publisher = main.getElementsByClassName("text-md")[0]?.textContent || "";
+            let info = main.getElementsByClassName("text-sm text-gray-500")[0]?.textContent || "";
+            let description = main.getElementsByClassName("mt-4 line-clamp-[10] js-md5-top-box-description")[0]?.textContent || "";
+            let thumbnail = main.querySelector('img')?.getAttribute('src') || "";
+
+            let mirrors = [];
+            let ulElements = main.querySelectorAll('ul.list-inside') || [];
+            ulElements.forEach(ul => {
+                ul.querySelectorAll('a').forEach(a => {
+                    let href = a.getAttribute('href');
+                    if (href.startsWith('https://')) {
+                        if (href) {
+                            if (!(href.includes('cloudconvert.com') ||
+                                href.includes('amazon.com'))) {
+                                mirrors.push(href);
+                            }
+                        }
+                    } else if (href &&
+                        (href.startsWith('/slow_download') ||
+                            href.startsWith('/ipfs_downloads') ||
+                            href.startsWith('/scidb'))) {
+                        mirrors.push(baseUrl + href.toString().replace('/scidb?doi=', '/scidb/'));
+                    }
+                });
+            });
+
+            return {
+                title: title.trim(),
+                author: author.trim(),
+                publisher: publisher.trim(),
+                info: info.trim(),
+                thumbnail: thumbnail,
+                description: description.trim(),
+                link: url,
+                bookIdMD5: url.toString().split('/').pop(),
+                mirrors: mirrors
+            };
+        }
+    }
+
+
+
+    class AnnasArchiveScihub {
+
+        getSciHubDBdata(resData, url, baseUrl) {
+            try {
+                const parser = new DOMParser();
+                const document = parser.parseFromString(atob(resData), "text/html");
+
+                let fileDownloadUrl = "";
+                let otherUrls = "";
+                let title = "";
+                let info = "";
+                let pub = "";
+
+                const bookDetails = document.getElementsByClassName("text-xs");
+                if (bookDetails.length > 0) {
+                    const metadata = bookDetails[0].getElementsByTagName("div");
+                    for (let i = 0; i < metadata.length; i++) {
+                        if (i === 0) {
+                            info = metadata[i].textContent.trim();
+                        } else if (i === 1) {
+                            title = metadata[i].textContent.trim();
+                        } else {
+                            pub += metadata[i].textContent.trim() + " ";
+                        }
+                    }
+                }
+
+                const bookUrls = document.getElementsByClassName("text-sm");
+                if (bookUrls.length > 0) {
+                    const index = Array.from(bookUrls).findIndex(element => element.textContent.toLowerCase().includes("download"));
+                    if (index !== -1) {
+                        const allUrls = bookUrls[index].getElementsByTagName("a");
+
+                        Array.from(allUrls).forEach(element => {
+                            const href = element.getAttribute("href") || "";
+                            if (href.includes(".pdf")) {
+                                fileDownloadUrl = href;
+                            } else {
+                                const fullUrl = href.includes("/md5") ? baseUrl + href : href;
+                                otherUrls += "\n<a href=" + fullUrl + ">${element.textContent} :" + fullUrl + "</a>";
+                            }
+                        });
+                    }
+                }
+
+                return {
+                    title: title,
+                    author: "",
+                    thumbnail: "",
+                    publisher: pub.trim(),
+                    info: info.trim(),
+                    link: url,
+                    bookIdMD5: url,
+                    format: "pdf",
+                    mirrors: [fileDownloadUrl],
+                    description: otherUrls
+                };
+            } catch (error) {
+                console.error("Error in getting book info:", error);
+            }
+            return {};
+        }
+    }
+
+
+    class PdfDrive {
+
+        async searchBooks(query, siteDataArg) {
+            try {
+                if (!query || !siteDataArg) {
+                    throw new Error('Invalid input: query and siteDataArg are required');
+                }
+                const siteData = typeof siteDataArg === 'string'
+                    ? JSON.parse(siteDataArg)
+                    : siteDataArg;
+
+                const { primarySource, searchPath } = siteData;
+                if (!primarySource || !searchPath) {
+                    throw new Error('Invalid site data: missing primarySource or searchPath');
+                }
+                const url = `${primarySource}${searchPath.replace("{SEARCH_QUERY}", query)}`;
+                const apiCallMethod = { "url": url, "method": "GET", "runInIsolate": true};
+                const result = await window.flutter_inappwebview.callHandler('curlRequest', apiCallMethod);
+                if (result.statusCode !== 200) {
+                    console.warn(`Request failed with status code: ${result.statusCode}`);
+                    return null;
+                }
+                const parser = new DOMParser();
+                const decodedData = atob(result.data).replace(/<!--|\-->/g, '');
+                const document = parser.parseFromString(decodedData, "text/html");
+                const booksContainer = document.getElementsByClassName("files-new")[0];
+                if (!booksContainer) return [];
+                const books = booksContainer.getElementsByTagName("li");
+                const bookList = [];
+                for (const element of books) {
+                    const descData = element.getElementsByClassName("file-right");
+                    let desc = "";
+                    if (descData.length > 0) {
+                        const texts = descData[0].textContent.trim().split("\n");
+                        desc = texts.length > 1 ? texts[texts.length - 2] : "";
+                    }
+                    const infoData = element.getElementsByClassName("file-info");
+                    const titleElement = element.querySelector("h2");
+                    const thumbnailElement = element.querySelector("img");
+                    const linkElement = element.querySelector("a");
+                    if (!titleElement || !linkElement) continue;
+
+                    const book = {
+                        title: titleElement.textContent.trim() || "",
+                        author: "", // No author extraction in this version
+                        image: thumbnailElement?.getAttribute("src") || "",
+                        link: `${primarySource}${linkElement.getAttribute("href") || ""}`,
+                        bookIdMD5: linkElement.getAttribute("href")?.split('/').pop() || "",
+                        publisher: desc.trim(),
+                        info: infoData.length > 0 ? infoData[0].textContent.trim() : "",
+                        source: "pdfDrive"
+                    };
+
+                    bookList.push(book);
+                }
+
+                return bookList;
+            } catch (error) {
+                console.error('Error in book search:', error);
+                if (error instanceof SyntaxError) {
+                    console.error('Parsing error:', error.message);
+                }
+                throw error;
+            }
+        }
+
+        getBookInfo(resData, url, baseUrl) {
+            const parser = new DOMParser();
+            const document = parser.parseFromString(atob(resData), "text/html");
+
+            const downloadElement = document.getElementById("download-button-link");
+            const downloadUrl = downloadElement ? downloadElement.getAttribute("href") : null;
+
+            const imageElement = document.getElementsByClassName("ebook-img")[0];
+            const image = imageElement ? imageElement.getAttribute("src") : null;
+
+            const titleElement = document.getElementsByClassName("ebook-title")[0];
+            const title = titleElement ? titleElement.textContent.trim() : null;
+
+            const infoElement = document.getElementsByClassName("ebook-file-info")[0];
+            const info = infoElement ? infoElement.textContent.trim().replace(/\n/g, " ") : null;
+
+            const authorElement = document.getElementsByClassName("ebook-author")[0];
+            const author = authorElement ? authorElement.textContent.trim() : null;
+
+            const fullDownloadLink = baseUrl + (downloadUrl || '');
+
+            return {
+                author: author || "",
+                title: title || "",
+                thumbnail: image || "",
+                publisher: null,
+                info: info || "",
+                description: "",
+                link: url,
+                bookIdMD5: "",
+                mirrors: [fullDownloadLink],
+                format: "pdf"
+            };
+        }
+    }
+
+    class LibgenGs {
+        async searchBooks(query, siteDataArg) {
+            try {
+                if (!query || !siteDataArg) {
+                    throw new Error('Invalid input: query and siteDataArg are required');
+                }
+                const siteData = typeof siteDataArg === 'string'
+                    ? JSON.parse(siteDataArg)
+                    : siteDataArg;
+
+                const { primarySource, searchPath } = siteData;
+                if (!primarySource || !searchPath) {
+                    throw new Error('Invalid site data: missing primarySource or searchPath');
+                }
+                const url = `${primarySource}${searchPath.replace("{SEARCH_QUERY}", query)}`;
+                const apiCallMethod = { "url": url, "method": "GET", "runInIsolate": true};
+                const result = await window.flutter_inappwebview.callHandler('curlRequest', apiCallMethod);
+                if (result.statusCode !== 200) {
+                    console.warn(`Request failed with status code: ${result.statusCode}`);
+                    return null;
+                }
+                const parser = new DOMParser();
+                const decodedData = atob(result.data).replace(/<!--|\-->/g, '');
+                const document = parser.parseFromString(decodedData, "text/html");
+                const tableRows = document.querySelectorAll("#tablelibgen tbody tr");
+                const bookList = [];
+                tableRows.forEach(row => {
+                    const data = row.getElementsByTagName("td");
+                    if (data.length < 9) return;
+                    const titleElement = data[1].querySelector("a");
+                    const authorElement = data[2];
+                    const publisherElement = data[3];
+                    const yearElement = data[4];
+                    const languageElement = data[5];
+                    const pagesElement = data[6];
+                    const sizeElement = data[7];
+                    const formatElement = data[8];
+                    const imageElement = data[0].querySelector("img");
+                    const bookElement = data[0].querySelector("a");
+                    let info = [
+                        yearElement.textContent.trim(),
+                        languageElement.textContent.trim(),
+                        pagesElement.textContent.trim(),
+                        formatElement.textContent.trim(),
+                        sizeElement.textContent.trim()
+                    ]
+                        .filter(item => item)
+                        .join(" | ");
+                    const book = {
+                        title: titleElement ? titleElement.textContent.trim() : "",
+                        author: authorElement ? authorElement.textContent.trim() : "",
+                        image: imageElement ? `${primarySource}${imageElement.getAttribute("src") || ""}` : "",
+                        link: bookElement ? `${primarySource}/${bookElement.getAttribute("href") || ""}` : "",
+                        bookIdMD5: bookElement ? bookElement.getAttribute("href")?.split("id=").pop() || "" : "",
+                        publisher: publisherElement ? publisherElement.textContent.trim() : "",
+                        info: info.trim(),
+                        source: "libgenGs",
+                    };
+
+                    bookList.push(book);
+                });
+
+                return bookList;
+            } catch (error) {
+                console.error('Error in book search:', error);
+                if (error instanceof SyntaxError) {
+                    console.error('Parsing error:', error.message);
+                }
+                throw error;
+            }
+        }
+
+
+        getBookInfo(resData, url, baseUrl) {
+            const parser = new DOMParser();
+            const document = parser.parseFromString(atob(resData), "text/html");
+
+            const bookDetails = document.getElementsByClassName("row")[0];
+            if (!bookDetails) return { title: "error_from_server_side" };
+
+            const imageElement = bookDetails.getElementsByTagName("img")[0];
+            const details = bookDetails.querySelector(".col-xl-7.order-xl-2.col-12.order-2.float-left");
+            const detailsParagraph = details ? details.getElementsByTagName("p") : [];
+
+            const descr1 = this.getTextContent(bookDetails, ".col-12.order-4.float-left");
+            const descr2 = this.getTextContent(bookDetails, ".col-12.order-5.float-left");
+            const descr3 = this.getTextContent(bookDetails, ".col-12.order-6.float-left");
+
+            let mirrors = [];
+            const tableRows = document.querySelectorAll("#tablelibgen tbody tr");
+
+            tableRows.forEach(row => {
+                const allA = row.getElementsByTagName("a");
+                Array.from(allA).forEach(a => {
+                    let url = a.getAttribute("href") || "";
+                    if (url.includes("://") || url.includes("magnet:?")) {
+                        mirrors.push(url);
+                    } else {
+                        mirrors.push(`${baseUrl}/${url}`);
+                    }
+                });
+            });
+
+            return {
+                title: detailsParagraph.length > 0 ? detailsParagraph[0].textContent.trim() : "Unknown Title",
+                author: detailsParagraph.length > 1 ? detailsParagraph[1].textContent.trim() : "Unknown Author",
+                publisher: detailsParagraph.length > 2 ? detailsParagraph[2].textContent.trim() : "Unknown Publisher",
+                info: detailsParagraph.length > 4
+                    ? `${detailsParagraph[3].textContent.trim()} | ${detailsParagraph[4].textContent.trim()}`
+                    : "",
+                description: `${descr1}\n${descr2}\n${descr3}`,
+                descr: "",
+                format: "",
+                thumbnail: imageElement ? `${baseUrl}${imageElement.getAttribute("src") || ""}` : "",
+                link: baseUrl,
+                bookIdMD5: baseUrl.split("id=").pop() || "",
+                mirrors: mirrors
+            };
+        }
+
+        getTextContent(element, selector) {
+            const found = element.querySelector(selector);
+            return found ? found.textContent.trim() : "";
+        }
+    }
+
+</script>
+</body>
+</html>
