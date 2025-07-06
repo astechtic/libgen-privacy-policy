@@ -3,13 +3,306 @@
 
 <head>
     <title>libgen_api_script</title>
+    <meta charset="UTF-8">
 </head>
 
 <body>
 <h1>libgen_api_script server working</h1>
 <script>
-    class AnnasArchive {
+    // Helper function to properly decode base64 with UTF-8 support
+    function decodeBase64UTF8(base64String) {
+        try {
+            // First decode base64 to binary string
+            const binaryString = atob(base64String);
 
+            // Convert binary string to Uint8Array
+            const bytes = new Uint8Array(binaryString.length);
+            for (let i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+
+            // Decode as UTF-8
+            return new TextDecoder('utf-8').decode(bytes);
+        } catch (error) {
+            console.error('Error decoding base64 UTF-8:', error);
+            // Fallback to original method if decoding fails
+            return atob(base64String);
+        }
+    }
+
+    class LibgenIsFiction {
+      async searchBooks(query, siteDataArg) {
+        try {
+          if (!query || !siteDataArg) {
+            throw new Error('Invalid input: query and siteDataArg are required');
+          }
+          // allow passing as JSON-string or object
+          const siteData = typeof siteDataArg === 'string'
+            ? JSON.parse(siteDataArg)
+            : siteDataArg;
+          const { primarySource, searchPath } = siteData;
+          if (!primarySource || !searchPath) {
+            throw new Error('Invalid site data: missing primarySource or searchPath');
+          }
+
+          // build search URL
+          const url = `${primarySource}${searchPath.replace(
+            "{SEARCH_QUERY}",
+            encodeURIComponent(query)
+          )}`;
+          const apiCallMethod = { url, method: "GET", runInIsolate: true };
+          const result = await window.flutter_inappwebview.callHandler(
+            'curlRequest',
+            apiCallMethod
+          );
+
+          if (result.statusCode !== 200) {
+            console.warn(`Request failed with status code: ${result.statusCode}`);
+            return [];
+          }
+
+          // decode with UTF-8 support and strip HTML comments
+          const decoded = decodeBase64UTF8(result.data).replace(/<!--|-->/g, '');
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(decoded, 'text/html');
+
+          // select each row in the fiction catalog
+          const rows = doc.querySelectorAll("table.catalog tbody tr");
+          const bookList = [];
+
+          rows.forEach(row => {
+            const cells = row.querySelectorAll("td");
+            if (cells.length < 6) return; // unexpected format
+
+            // authors (comma-separated)
+            const authorEls = cells[0].querySelectorAll("ul.catalog_authors li a");
+            const authors = Array.from(authorEls)
+              .map(a => a.textContent.trim())
+              .join(", ");
+
+            // series (2nd column)
+            const series = cells[1].textContent.trim();
+
+            // title + detail-page link
+            const titleLink = cells[2].querySelector("p a");
+            const title = titleLink.textContent.trim();
+            const href = titleLink.getAttribute("href");
+            const link = href.startsWith("http")
+              ? href
+              : `${primarySource}${href}`;
+
+            // language
+            const language = cells[3].textContent.trim();
+
+            // file info (e.g. "RAR / 991 Kb")
+            const fileInfo = cells[4].textContent.trim();
+
+            // mirror links
+            const mirrorEls = cells[5].querySelectorAll("ul.record_mirrors_compact li a");
+            const mirrors = Array.from(mirrorEls).map(a => {
+              const mHref = a.getAttribute("href");
+              return mHref.startsWith("http")
+                ? mHref
+                : `${primarySource}${mHref}`;
+            });
+
+            // extract MD5 from URL path (last segment)
+            const bookIdMD5 = href.split('/').pop();
+
+            bookList.push({
+              title,
+              author: authors,
+              series,
+              language,
+              info: fileInfo,
+              link,
+              bookIdMD5,
+              mirrors,
+              source: "libgenIsFiction"
+            });
+          });
+
+          return bookList;
+        } catch (error) {
+          console.error('Error in LibgenIsFiction.searchBooks:', error);
+          throw error;
+        }
+      }
+
+      getBookInfo(resData, url, baseUrl) {
+        if (!resData || typeof resData !== 'string') {
+          throw new Error('Invalid input: Expected HTML string in resData');
+        }
+
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(decodeBase64UTF8(resData), 'text/html');
+
+        const getXPathText = (xpath) => {
+          const result = doc.evaluate(xpath, doc, null, XPathResult.STRING_TYPE, null);
+          return result.stringValue.trim();
+        };
+
+        const getXPathElements = (xpath) => {
+          const nodesSnapshot = doc.evaluate(xpath, doc, null, XPathResult.ORDERED_NODE_SNAPSHOT_TYPE, null);
+          const elements = [];
+          for (let i = 0; i < nodesSnapshot.snapshotLength; i++) {
+            elements.push(nodesSnapshot.snapshotItem(i));
+          }
+          return elements;
+        };
+
+        const getXPathAttr = (xpath, attr) => {
+          const node = doc.evaluate(xpath, doc, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+          return node ? node.getAttribute(attr) : '';
+        };
+
+        const title = getXPathText('/html/body/div/table/tbody/tr[1]/td[2]');
+        const author = getXPathText('/html/body/div/table/tbody/tr[2]/td[1]');
+        const thumbnailRel = getXPathAttr('/html/body/div/div/img', 'src');
+        const thumbnail = thumbnailRel ? new URL(thumbnailRel, baseUrl).href : '';
+
+        const bookIdMD5 = getXPathText('//table[@class="hashes"]/tr[1]/td[2]');
+
+        const mirrorElements = getXPathElements('/html/body/div/table/tbody/tr[9]/td[2]/ul/li/a');
+        const mirrors = mirrorElements
+          .map((el) => {
+            const href = el.getAttribute('href');
+            return href ? new URL(href, baseUrl).href : null;
+          })
+          .filter(Boolean);
+
+        return {
+          title,
+          author,
+          thumbnail,
+          description: '',
+          tableOfContents: '',
+          link: url,
+          bookIdMD5,
+          mirrors,
+        };
+      }
+    }
+
+    class LibgenIs {
+        async searchBooks(query, siteDataArg) {
+            try {
+                if (!query || !siteDataArg) {
+                    throw new Error('Invalid input: query and siteDataArg are required');
+                }
+
+                const siteData = typeof siteDataArg === 'string'
+                    ? JSON.parse(siteDataArg)
+                    : siteDataArg;
+
+                const { primarySource, searchPath } = siteData;
+                if (!primarySource || !searchPath) {
+                    throw new Error('Invalid site data: missing primarySource or searchPath');
+                }
+
+                const url = `${primarySource}${searchPath.replace("{SEARCH_QUERY}", encodeURIComponent(query))}`;
+                const apiCallMethod = { "url": url, "method": "GET", "runInIsolate": true };
+                const result = await window.flutter_inappwebview.callHandler('curlRequest', apiCallMethod);
+
+                if (result.statusCode !== 200) {
+                    console.warn(`Request failed with status code: ${result.statusCode}`);
+                    return null;
+                }
+
+                const decodedData = decodeBase64UTF8(result.data).replace(/<!--|\-->/g, '');
+                const parser = new DOMParser();
+                const document = parser.parseFromString(decodedData, 'text/html');
+
+                const rows = document.querySelectorAll('table.c tr');
+                const bookList = [];
+
+                for (let i = 1; i < rows.length; i++) {
+                    const columns = rows[i].querySelectorAll('td');
+                    if (columns.length < 10) continue;
+
+                    const titleElement = columns[2].querySelector('a');
+                    const author = columns[1].textContent.trim();
+                    const publisher = columns[3].textContent.trim();
+                    const year = columns[4].textContent.trim();
+                    const pages = columns[5].textContent.trim();
+                    const language = columns[6].textContent.trim();
+                    const size = columns[7].textContent.trim();
+                    const format = columns[8].textContent.trim();
+                    const mirrors = columns[9].querySelectorAll('a');
+
+                    const mirrorLink = mirrors.length > 0 ? mirrors[0].getAttribute('href') : '';
+                    const bookIdMD5 = columns[2].querySelector('a').getAttribute('href').split('md5=')[1] || '';
+
+                    const info = [year, language, pages, format, size].filter(Boolean).join(' | ');
+
+                    bookList.push({
+                        title: titleElement ? titleElement.textContent.trim() : '',
+                        author,
+                        publisher,
+                        image: '', // Libgen.is search page doesn't show thumbnail
+                        link: `${primarySource}/book/index.php?md5=${bookIdMD5}`,
+                        bookIdMD5,
+                        info,
+                        source: 'libgenIs',
+                    });
+                }
+
+                return bookList;
+            } catch (error) {
+                console.error('Error in LibgenIs searchBooks:', error);
+                if (error instanceof SyntaxError) {
+                    console.error('Parsing error:', error.message);
+                }
+                throw error;
+            }
+        }
+
+        getBookInfo(resData, url, baseUrl) {
+            console.log("⏳ Parsing book info from Libgen HTML...");
+            const parser = new DOMParser();
+            const document = parser.parseFromString(decodeBase64UTF8(resData), "text/html");
+
+            const table = document.querySelector("table");
+            const rows = table?.getElementsByTagName("tr") || [];
+
+            const title = rows[1]?.querySelector("td:nth-child(3) b a")?.textContent.trim() || "";
+            const imgSrc = rows[1]?.querySelector("td:nth-child(1) a img")?.getAttribute("src") || "";
+            const thumbnail = baseUrl + imgSrc;
+            const author = rows[2]?.querySelector("td:nth-child(2) b")?.textContent.trim() || "";
+            const descriptionRow = [...rows].reverse().find(r => r.innerHTML.includes("Table of contents"));
+            const rawDescription = descriptionRow?.textContent.trim() || "";
+
+            // Extract TOC from "Table of contents" onward
+            let toc = "";
+            const tocMatch = rawDescription.match(/Table of contents\s*:\s*(.*)/is);
+            if (tocMatch) {
+                toc = tocMatch[1].trim();
+            }
+
+            // Extract mirrors from row containing "Mirrors:"
+            let mirrors = [];
+            const mirrorsRow = Array.from(rows).find(r => r.textContent.includes("Mirrors:"));
+            if (mirrorsRow) {
+                mirrors = Array.from(mirrorsRow.querySelectorAll("a[href]"))
+                    .map(a => a.getAttribute("href"))
+                    .filter(href => !!href)
+                    .map(href => href.startsWith("http") ? href : `${baseUrl}/${href}`);
+            }
+
+            return {
+                title,
+                author,
+                thumbnail,
+                description: rawDescription,
+                tableOfContents: toc,
+                link: url,
+                bookIdMD5: url.split("?md5=").pop() || "",
+                mirrors
+            };
+        }
+    }
+
+    class AnnasArchive {
         async searchBooks(query, siteDataArg) {
             try {
                 if (!query || !siteDataArg) {
@@ -22,7 +315,7 @@
                 if (!primarySource || !searchPath) {
                     throw new Error('Invalid site data: missing primarySource or searchPath');
                 }
-                const url = `${primarySource}${searchPath.replace("{SEARCH_QUERY}", query)}`;
+                const url = `${primarySource}${searchPath.replace("{SEARCH_QUERY}", encodeURIComponent(query))}`;
                 const apiCallMethod = { "url": url, "method": "GET", "runInIsolate": true };
                 const result = await window.flutter_inappwebview.callHandler('curlRequest', apiCallMethod);
                 if (result.statusCode !== 200) {
@@ -30,7 +323,7 @@
                     return null;
                 }
 
-                const decodedData = atob(result.data).replace(/<!--|\-->/g, '');
+                const decodedData = decodeBase64UTF8(result.data).replace(/<!--|\-->/g, '');
                 const parser = new DOMParser();
                 const document = parser.parseFromString(decodedData, 'text/html');
                 const bookElements = document.getElementsByClassName("js-vim-focus custom-a flex items-center");
@@ -72,7 +365,7 @@
 
         getBookInfo(resData, url, baseUrl) {
             let parser = new DOMParser();
-            let document = parser.parseFromString(atob(resData), "text/html");
+            let document = parser.parseFromString(decodeBase64UTF8(resData), "text/html");
 
             // Ensure main is a single element, not a collection
             let mainElements = document.getElementsByClassName("main");
@@ -125,14 +418,11 @@
         }
     }
 
-
-
     class AnnasArchiveScihub {
-
         getSciHubDBdata(resData, url, baseUrl) {
             try {
                 const parser = new DOMParser();
-                const document = parser.parseFromString(atob(resData), "text/html");
+                const document = parser.parseFromString(decodeBase64UTF8(resData), "text/html");
 
                 let fileDownloadUrl = "";
                 let otherUrls = "";
@@ -166,7 +456,7 @@
                                 fileDownloadUrl = href;
                             } else {
                                 const fullUrl = href.includes("/md5") ? baseUrl + href : href;
-                                otherUrls += "\n<a href=" + fullUrl + ">${element.textContent} :" + fullUrl + "</a>";
+                                otherUrls += "\n<a href=" + fullUrl + ">" + element.textContent + " :" + fullUrl + "</a>";
                             }
                         });
                     }
@@ -191,9 +481,7 @@
         }
     }
 
-
     class PdfDrive {
-
         async searchBooks(query, siteDataArg) {
             try {
                 if (!query || !siteDataArg) {
@@ -207,7 +495,7 @@
                 if (!primarySource || !searchPath) {
                     throw new Error('Invalid site data: missing primarySource or searchPath');
                 }
-                const url = `${primarySource}${searchPath.replace("{SEARCH_QUERY}", query)}`;
+                const url = `${primarySource}${searchPath.replace("{SEARCH_QUERY}", encodeURIComponent(query))}`;
                 const apiCallMethod = { "url": url, "method": "GET", "runInIsolate": true};
                 const result = await window.flutter_inappwebview.callHandler('curlRequest', apiCallMethod);
                 if (result.statusCode !== 200) {
@@ -215,7 +503,7 @@
                     return null;
                 }
                 const parser = new DOMParser();
-                const decodedData = atob(result.data).replace(/<!--|\-->/g, '');
+                const decodedData = decodeBase64UTF8(result.data).replace(/<!--|\-->/g, '');
                 const document = parser.parseFromString(decodedData, "text/html");
                 const booksContainer = document.getElementsByClassName("files-new")[0];
                 if (!booksContainer) return [];
@@ -260,7 +548,7 @@
 
         getBookInfo(resData, url, baseUrl) {
             const parser = new DOMParser();
-            const document = parser.parseFromString(atob(resData), "text/html");
+            const document = parser.parseFromString(decodeBase64UTF8(resData), "text/html");
 
             const downloadElement = document.getElementById("download-button-link");
             const downloadUrl = downloadElement ? downloadElement.getAttribute("href") : null;
@@ -308,7 +596,7 @@
                 if (!primarySource || !searchPath) {
                     throw new Error('Invalid site data: missing primarySource or searchPath');
                 }
-                const url = `${primarySource}${searchPath.replace("{SEARCH_QUERY}", query)}`;
+                const url = `${primarySource}${searchPath.replace("{SEARCH_QUERY}", encodeURIComponent(query))}`;
                 const apiCallMethod = { "url": url, "method": "GET", "runInIsolate": true};
                 const result = await window.flutter_inappwebview.callHandler('curlRequest', apiCallMethod);
                 if (result.statusCode !== 200) {
@@ -316,7 +604,7 @@
                     return null;
                 }
                 const parser = new DOMParser();
-                const decodedData = atob(result.data).replace(/<!--|\-->/g, '');
+                const decodedData = decodeBase64UTF8(result.data).replace(/<!--|\-->/g, '');
                 const document = parser.parseFromString(decodedData, "text/html");
                 const tableRows = document.querySelectorAll("#tablelibgen tbody tr");
                 const bookList = [];
@@ -366,10 +654,9 @@
             }
         }
 
-
         getBookInfo(resData, url, baseUrl) {
             const parser = new DOMParser();
-            const document = parser.parseFromString(atob(resData), "text/html");
+            const document = parser.parseFromString(decodeBase64UTF8(resData), "text/html");
 
             const bookDetails = document.getElementsByClassName("row")[0];
             if (!bookDetails) return { title: "error_from_server_side" };
