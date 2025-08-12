@@ -180,7 +180,7 @@
                 const full = abs(href);
                 if (full) mirrorsSet.add(full);
             });
-            const mirrors = [...mirrorsSet];
+            const mirrors = [...mirrorsSet, url];
 
             // Book ID from URL: /book/2166985/...
             let bookIdMD5 = '';
