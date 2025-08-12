@@ -34,36 +34,36 @@
           if (!query || !siteDataArg) {
             throw new Error('Invalid input: query and siteDataArg are required');
           }
-    
+
           const siteData = typeof siteDataArg === 'string'
             ? JSON.parse(siteDataArg)
             : siteDataArg;
-    
+
           const { primarySource, searchPath } = siteData || {};
           if (!primarySource || !searchPath) {
             throw new Error('Invalid site data: missing primarySource or searchPath');
           }
-    
+
           const url = `${primarySource.replace(/\/+$/, '')}${searchPath.replace('{SEARCH_QUERY}', encodeURIComponent(query))}`;
-    
+
           const apiCallMethod = { url, method: 'GET', runInIsolate: true };
           const result = await window.flutter_inappwebview.callHandler('curlRequest', apiCallMethod);
-    
+
           if (!result || result.statusCode !== 200) {
             console.warn(`Request failed with status code: ${result?.statusCode}`);
             return null;
           }
-    
+
           // Decode HTML and strip HTML comments to avoid DOM noise
           const decoded = decodeBase64UTF8(result.data).replace(/<!--|-->/g, '');
           const parser = new DOMParser();
           const document = parser.parseFromString(decoded, 'text/html');
-    
+
           // Select all book result boxes
           const bookNodes = document.querySelectorAll(
             'div.resItemBox.exactMatch[itemscope][itemtype="http://schema.org/Book"]'
           );
-    
+
           const toAbsolute = (src) => {
             if (!src) return '';
             // Protocol-relative //i.booksee.org/...
@@ -73,46 +73,45 @@
             // Already absolute
             return src;
           };
-    
+
           const toAbsoluteLink = (href) => {
             if (!href) return '';
             if (/^https?:\/\//i.test(href)) return href;
             // Normalize joining without double slashes
             return primarySource.replace(/\/+$/, '') + '/' + href.replace(/^\/+/, '');
           };
-    
-          const books = Array.from(bookNodes).map(node => {
-              const titleEl = node.querySelector('h3.color1[itemprop="name"]');
-              const title = titleEl?.textContent?.trim() || '';
-            
-              let linkEl = titleEl?.closest('a') || node.querySelector('a[href*="book/"]');
-              let rawHref = linkEl?.getAttribute('href') || '';
-            
-              // Extract bookId from any variant of /book/{id}
-              let bookId = '';
-              const m = rawHref.match(/\/book\/(\d+)/);
-              if (m) {
-                bookId = m[1];
-              }
-            
-              // Build new mobile URL
-              const href = bookId
-                ? `https://m.booksee.org/book/${bookId}?force_lang=en`
-                : '';
-            
-              const imgEl = node.querySelector('img');
-              const image = toAbsolute(imgEl?.getAttribute('src') || '');
-            
-              return {
-                title,
-                image,
-                link: href,
-                bookId,
-                source: 'booksee'
-              };
-            }).filter(b => b.title && b.link);
 
-    
+          const books = Array.from(bookNodes).map(node => {
+            // Title: <h3 class="color1" itemprop="name">
+            const titleEl = node.querySelector('h3.color1[itemprop="name"]');
+            const title = titleEl?.textContent?.trim() || '';
+
+            // Link: <a href="book/1073785"><h3 ...>...</h3></a>
+            // Prefer the closest <a> that wraps the h3, else any link to /book/
+            let linkEl = titleEl?.closest('a') || node.querySelector('a[href*="book/"]');
+            const href = toAbsoluteLink(linkEl?.getAttribute('href') || '');
+
+            // Image: <img src="//i.booksee.org/covers/...">
+            const imgEl = node.querySelector('img');
+            const image = toAbsolute(imgEl?.getAttribute('src') || '');
+
+            // Try to extract numeric book id from href like ".../book/1073785"
+            let bookId = '';
+            if (href) {
+              const m = href.match(/\/book\/(\d+)(?:\/|$)/) || href.match(/book\/(\d+)/);
+              if (m) bookId = m[1];
+            }
+
+            return {
+              title,
+              image,
+              link: href,
+              bookId,
+              source: 'booksee'
+            };
+          }).filter(b => b.title && b.link);
+
+
           return books;
         } catch (error) {
           console.error('Error in BookSee.searchBooks:', error);
@@ -124,93 +123,115 @@
       }
 
       getBookInfo(resData, url, baseUrl) {
-        const decodeHtml = (b64) => decodeBase64UTF8(b64).replace(/<!--|-->/g, '');
-    
-        const toAbsolute = (src) => {
-          if (!src) return '';
-          if (src.startsWith('//')) return 'https:' + src;            // protocol-relative
-          if (src.startsWith('/'))  return baseUrl.replace(/\/+$/, '') + src; // root-relative
-          return src;
-        };
-    
-        const isImageUrl = (href) => {
-          if (!href) return false;
-          const h = href.toLowerCase();
-          return (
-            h.startsWith('data:image/') ||
-            h.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?|#|$)/i) ||
-            h.includes('//i.booksee.org/')
-          );
-        };
-    
         try {
-          const html = decodeHtml(resData);
+          const decode = (s) => decodeBase64UTF8(s);
           const parser = new DOMParser();
-          const document = parser.parseFromString(html, 'text/html');
-    
-          // Title: <h1 class="ui-title" ...>
-          const titleEl = document.querySelector('h1.ui-title[role="heading"]') || document.querySelector('h1.ui-title');
-          const title = titleEl?.textContent?.trim() || '';
-    
-          // Image: <img style="width:200px" src="//i.booksee.org/covers/...">
-          const imgEl = document.querySelector('img[alt^="Book cover"]') || document.querySelector('img[style*="width:200px"]') || document.querySelector('img');
-          const image = toAbsolute(imgEl?.getAttribute('src') || '');
-    
-          // Main content area for mirrors
-          const content = document.querySelector('div.ui-content[role="main"][data-role="content"]') ||
-                          document.querySelector('div.ui-content[role="main"]') ||
-                          document.querySelector('div.ui-content');
-    
-          const anchors = content ? Array.from(content.querySelectorAll('a[href]')) : [];
-          const abs = (href) => {
+          const document = parser.parseFromString(decode(resData), 'text/html');
+
+          // Scope to the main book details container
+          const main = document.querySelector(
+            'div.details_bl[itemscope][itemtype="http://schema.org/Book"]'
+          );
+          if (!main) {
+            console.error('BookSee.getBookInfo: main details container not found');
+            return {};
+          }
+
+          // Helpers to normalize URLs
+          const normalizeAbs = (href) => {
             if (!href) return '';
-            if (/^https?:\/\//i.test(href)) return href;
+            // Strip whitespace
+            href = href.trim();
+            // ignore non-http(s)
+            if (/^(javascript:|mailto:)/i.test(href)) return '';
+
+            // protocol-relative: //domain/path
             if (href.startsWith('//')) return 'https:' + href;
-            return baseUrl.replace(/\/+$/, '') + '/' + href.replace(/^\/+/, '');
+
+            // root-relative: /path
+            if (href.startsWith('/')) {
+              const origin = (baseUrl || '').replace(/\/+$/, '');
+              return origin + href;
+            }
+
+            // already absolute?
+            if (/^https?:\/\//i.test(href)) return href;
+
+            // relative path
+            const origin = (baseUrl || '').replace(/\/+$/, '');
+            return origin + '/' + href.replace(/^\/+/, '');
           };
-    
-          // Mirrors filtering rules:
-          // 1) Include if startsWith('https://booksee.org/dl/')
-          // 2) Otherwise include if NOT pointing to baseUrl (external) AND NOT an image URL
-          const mirrors = anchors
-            .map(a => abs(a.getAttribute('href')))
-            .filter(href => {
-              if (!href) return false;
-              if (href.startsWith('https://booksee.org/dl/')) return true;
-              if (href.includes(baseUrl)) return false;     // skip internal nav links
-              if (isImageUrl(href)) return false;           // skip images
-              return true;
+
+          const isImageUrl = (u) => /\.(png|jpe?g|gif|webp|svg)(\?.*)?$/i.test(u);
+
+          // --- Title
+          const titleEl = main.querySelector('h1[itemprop="name"]');
+          const title = (titleEl?.textContent || '').trim();
+
+          // --- Authors (multiple <a itemprop="author"> inside span.autor_bl)
+          const authorNodes = main.querySelectorAll('span.autor_bl a[itemprop="author"]');
+          const authors = Array.from(authorNodes)
+            .map(a => (a.textContent || '').replace(/\s+/g, ' ').trim())
+            .filter(Boolean)
+            .join(', ');
+
+          // --- Image
+          const imgEl = main.querySelector('img');
+          let image = normalizeAbs(imgEl?.getAttribute('src') || '');
+
+          // --- Description
+          const descEl = main.querySelector('#bookDescriptionBox[itemprop="reviewBody"]') ||
+                         main.querySelector('#bookDescriptionBox');
+          const description = (descEl?.textContent || '').trim();
+
+          // --- Mirrors
+          // Collect all <a> inside the same main container, then filter:
+          // 1) keep links that start with https://booksee.org/dl/
+          // 2) OR links that are NOT on baseUrl and NOT image URLs
+          const aNodes = main.querySelectorAll('a[href]');
+          const absLinks = Array.from(aNodes)
+            .map(a => normalizeAbs(a.getAttribute('href')))
+            .filter(Boolean);
+
+          const baseOrigin = (baseUrl || '').replace(/\/+$/, '');
+          const mirrors = Array.from(new Set(
+            absLinks.filter(link => {
+              // include explicit download links
+              if (/^https:\/\/booksee\.org\/dl\//i.test(link)) return true;
+
+              // skip images
+              if (isImageUrl(link)) return false;
+
+              // skip links that point to the base site (keep off-site mirrors)
+              if (baseOrigin && link.startsWith(baseOrigin)) return false;
+
+              // keep other absolute http(s) mirrors
+              return /^https?:\/\//i.test(link);
             })
-            // optional: dedupe while preserving order
-            .filter((href, idx, arr) => arr.indexOf(href) === idx);
-    
-          // Extract numeric bookId from the current URL (/book/{id})
+          ));
+
+          // --- Book ID from URL: /book/123456
           let bookId = '';
-          try {
-            const u = new URL(url, baseUrl || 'https://m.booksee.org');
-            const m = u.pathname.match(/\/book\/(\d+)/);
-            if (m) bookId = m[1];
-          } catch (_) {
-            const m = (url || '').match(/\/book\/(\d+)/);
+          if (url) {
+            const m = url.match(/\/book\/(\d+)(?:\/|$)/);
             if (m) bookId = m[1];
           }
-    
+
           return {
             title,
-            image,
+            authors,
+            thumbnail: image,
+            description,
             link: url,
             bookId,
             mirrors
           };
         } catch (err) {
           console.error('Error in BookSee.getBookInfo:', err);
-          return {
-            title: '',
-            image: '',
-            link: url || '',
-            bookId: '',
-            mirrors: []
-          };
+          if (err instanceof SyntaxError) {
+            console.error('Parsing error:', err.message);
+          }
+          return {};
         }
       }
     }
