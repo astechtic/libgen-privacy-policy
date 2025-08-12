@@ -30,6 +30,217 @@
         }
     }
 
+    class PdfRoom {
+     async searchBooks(query, siteDataArg) {
+         try {
+             if (!query || !siteDataArg) return [];
+
+             const siteData = typeof siteDataArg === 'string' ?
+                 JSON.parse(siteDataArg) :
+                 siteDataArg;
+
+             const {
+                 primarySource,
+                 searchPath
+             } = siteData || {};
+             if (!primarySource || !searchPath) return [];
+
+             const url = new URL(
+                 searchPath.replace('{SEARCH_QUERY}', encodeURIComponent(query)),
+                 primarySource
+             ).toString();
+
+             const result = await window.flutter_inappwebview.callHandler('curlRequest', {
+                 url,
+                 method: 'GET',
+                 runInIsolate: true
+             });
+             if (!result || result.statusCode !== 200) return [];
+
+             const html = decodeBase64UTF8(result.data);
+             const doc = new DOMParser().parseFromString(html, 'text/html');
+
+             const cards = doc.querySelectorAll('div.flex.flex-col.md\\:flex-row');
+
+             const normalize = (s) => (s || '').replace(/\s+/g, ' ').trim();
+
+             const resolveUrl = (raw) => {
+                 const val = (raw || '').trim();
+                 if (!val) return '';
+                 if (val.startsWith('//')) return `https:${val}`;
+                 try {
+                     return new URL(val, primarySource).toString();
+                 } catch {
+                     return '';
+                 }
+             };
+
+             const pickFromSrcset = (srcset) => {
+                 const first = (srcset || '').split(',')[0].trim().split(/\s+/)[0];
+                 return first || '';
+             };
+
+             const regexFindImage = (htmlStr) => {
+                 const m = (htmlStr || '').match(/https?:\/\/[^\s"'<>]+?\.(?:jpg|jpeg|png|webp)(?:\?[^\s"'<>]*)?/i);
+                 return m ? m[0] : '';
+             };
+
+             const getCardImage = (card) => {
+                 // 1) Prefer the left thumbnail column
+                 let img = card.querySelector('.shrink-0 img') || card.querySelector('img');
+                 if (img) {
+                     const src =
+                         img.getAttribute('src') ||
+                         img.getAttribute('data-src') ||
+                         img.getAttribute('data-original') ||
+                         img.getAttribute('data-lazy') ||
+                         pickFromSrcset(img.getAttribute('srcset')) ||
+                         '';
+                     const resolved = resolveUrl(src);
+                     if (resolved) return resolved;
+                 }
+                 // 2) <picture><source srcset=...>
+                 const source = card.querySelector('picture source[srcset]');
+                 if (source) {
+                     const resolved = resolveUrl(pickFromSrcset(source.getAttribute('srcset') || ''));
+                     if (resolved) return resolved;
+                 }
+                 // 3) Fallback: regex in the HTML of the card (handles weird lazy loaders)
+                 const found = regexFindImage(card.innerHTML);
+                 return resolveUrl(found);
+             };
+
+             const books = Array.from(cards).map((card) => {
+                 const titleEl = card.querySelector('h4');
+                 const linkEl = card.querySelector('h4 a[href]') || card.querySelector('a[href]');
+                 const infoEl =
+                     card.querySelector('p.tracking-wide') ||
+                     card.querySelector('div.p-2.ml-2 p') ||
+                     card.querySelector('p');
+
+                 const title = normalize(titleEl?.textContent);
+                 const link = resolveUrl(linkEl?.getAttribute('href') || '');
+                 const image = getCardImage(card);
+                 const info = normalize(infoEl?.textContent);
+                 const bookIdMD5 = link ? link.split(/[?#]/)[0].split('/').pop() || '' : '';
+
+                 if (!title || !link) return null;
+
+                 return {
+                     title,
+                     author: '',
+                     image,
+                     link,
+                     bookIdMD5,
+                     publisher: '',
+                     info,
+                     source: 'pdfroom'
+                 };
+             }).filter(Boolean);
+
+             return books;
+         } catch {
+             return [];
+         }
+     }
+
+     getBookInfo(resData, url, baseUrl) {
+         function normalize(s) {
+             return (s ? String(s) : '').replace(/\s+/g, ' ').trim();
+         }
+
+         function safeDownloadUrl(u) {
+             var clean = (u ? String(u) : '').replace(/\/+$/, '');
+             return clean ? (clean + '/download') : '';
+         }
+
+         function stripTags(html) {
+             return String(html || '').replace(/<[^>]*>/g, ' ');
+         }
+
+         function firstMatch(re, text) {
+             var m = re.exec(text);
+             return m ? m[1] || '' : '';
+         }
+
+         function sliceContainer(html, classFragment) {
+             var idx = html.indexOf(classFragment);
+             if (idx < 0) return '';
+             var startDiv = html.lastIndexOf('<div', idx);
+             if (startDiv < 0) startDiv = idx;
+             var chunk = html.slice(startDiv, startDiv + 20000);
+             return chunk;
+         }
+
+         function extractImgSrc(block) {
+             var src = firstMatch(/<img[^>]*\ssrc=["']([^"']+)["'][^>]*>/i, block);
+             if (!src) {
+                 src = firstMatch(/<img[^>]*\s(?:data-src|data-original|data-lazy)=["']([^"']+)["'][^>]*>/i, block) ||
+                     firstMatch(/<source[^>]*\ssrcset=["']([^"'\s,]+)[^"']*["'][^>]*>/i, block);
+             }
+             return src || '';
+         }
+
+         function extractH1(block) {
+             var inner = firstMatch(/<h1[^>]*>([\s\S]*?)<\/h1>/i, block);
+             return normalize(stripTags(inner));
+         }
+
+         function extractInfo(block) {
+             var inner = firstMatch(
+                 /<div[^>]*class=["'][^"']*\btext-text\b[^"']*\btext-sm\b[^"']*\bmd:text-base\b[^"']*["'][^>]*>([\s\S]*?)<\/div>/i,
+                 block
+             );
+             return normalize(stripTags(inner));
+         }
+
+         try {
+             var html = decodeBase64UTF8(resData || '');
+             var classFragment = 'bg-white rounded p-4 mb-2 flex gap-4 flex-col sm:flex-row';
+             var block = sliceContainer(html, classFragment);
+
+             var title = extractH1(block);
+             var image = extractImgSrc(block);
+             var info = extractInfo(block);
+             var bookIdMD5 = '';
+             try {
+                 bookIdMD5 = String(url).split(/[?#]/)[0].split('/').pop() || '';
+             } catch (e) {
+                 bookIdMD5 = '';
+             }
+             var mirrors = [safeDownloadUrl(url)];
+             var result = {
+                 title: title,
+                 author: '',
+                 publisher: '',
+                 info: info,
+                 thumbnail: image,
+                 description: '',
+                 link: url,
+                 bookIdMD5: bookIdMD5,
+                 mirrors: mirrors
+             };
+             return result;
+         } catch (e) {
+             var fallback = {
+                 title: '',
+                 author: '',
+                 publisher: '',
+                 info: '',
+                 thumbnail: '',
+                 description: '',
+                 link: url,
+                 bookIdMD5: (url ? String(url).split(/[?#]/)[0].split('/').pop() || '' : ''),
+                 mirrors: [safeDownloadUrl(url)]
+             };
+             return fallback;
+         }
+     }
+ }
+
+
+
+
     class LibgenIsFiction {
       async searchBooks(query, siteDataArg) {
         try {
