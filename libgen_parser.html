@@ -28,6 +28,101 @@
         }
     }
 
+    class BookSee {
+      async searchBooks(query, siteDataArg) {
+        try {
+          if (!query || !siteDataArg) {
+            throw new Error('Invalid input: query and siteDataArg are required');
+          }
+    
+          const siteData = typeof siteDataArg === 'string'
+            ? JSON.parse(siteDataArg)
+            : siteDataArg;
+    
+          const { primarySource, searchPath } = siteData || {};
+          if (!primarySource || !searchPath) {
+            throw new Error('Invalid site data: missing primarySource or searchPath');
+          }
+    
+          const url = `${primarySource.replace(/\/+$/, '')}${searchPath.replace('{SEARCH_QUERY}', encodeURIComponent(query))}`;
+    
+          const apiCallMethod = { url, method: 'GET', runInIsolate: true };
+          const result = await window.flutter_inappwebview.callHandler('curlRequest', apiCallMethod);
+    
+          if (!result || result.statusCode !== 200) {
+            console.warn(`Request failed with status code: ${result?.statusCode}`);
+            return null;
+          }
+    
+          // Decode HTML and strip HTML comments to avoid DOM noise
+          const decoded = decodeBase64UTF8(result.data).replace(/<!--|-->/g, '');
+          const parser = new DOMParser();
+          const document = parser.parseFromString(decoded, 'text/html');
+    
+          // Select all book result boxes
+          const bookNodes = document.querySelectorAll(
+            'div.resItemBox.exactMatch[itemscope][itemtype="http://schema.org/Book"]'
+          );
+    
+          const toAbsolute = (src) => {
+            if (!src) return '';
+            // Protocol-relative //i.booksee.org/...
+            if (src.startsWith('//')) return 'https:' + src;
+            // Root-relative /covers/...
+            if (src.startsWith('/')) return primarySource.replace(/\/+$/, '') + src;
+            // Already absolute
+            return src;
+          };
+    
+          const toAbsoluteLink = (href) => {
+            if (!href) return '';
+            if (/^https?:\/\//i.test(href)) return href;
+            // Normalize joining without double slashes
+            return primarySource.replace(/\/+$/, '') + '/' + href.replace(/^\/+/, '');
+          };
+    
+          const books = Array.from(bookNodes).map(node => {
+            // Title: <h3 class="color1" itemprop="name">
+            const titleEl = node.querySelector('h3.color1[itemprop="name"]');
+            const title = titleEl?.textContent?.trim() || '';
+    
+            // Link: <a href="book/1073785"><h3 ...>...</h3></a>
+            // Prefer the closest <a> that wraps the h3, else any link to /book/
+            let linkEl = titleEl?.closest('a') || node.querySelector('a[href*="book/"]');
+            const href = toAbsoluteLink(linkEl?.getAttribute('href') || '');
+    
+            // Image: <img src="//i.booksee.org/covers/...">
+            const imgEl = node.querySelector('img');
+            const image = toAbsolute(imgEl?.getAttribute('src') || '');
+    
+            // Try to extract numeric book id from href like ".../book/1073785"
+            let bookId = '';
+            if (href) {
+              const m = href.match(/\/book\/(\d+)(?:\/|$)/) || href.match(/book\/(\d+)/);
+              if (m) bookId = m[1];
+            }
+    
+            return {
+              title,
+              image,
+              link: href,
+              bookId,
+              source: 'booksee'
+            };
+          }).filter(b => b.title && b.link);
+    
+          return books;
+        } catch (error) {
+          console.error('Error in BookSee.searchBooks:', error);
+          if (error instanceof SyntaxError) {
+            console.error('Parsing error:', error.message);
+          }
+          throw error;
+        }
+      }
+    }
+
+
     class Zlibrary {
         async searchBooks(query, siteDataArg) {
             if (!query || !siteDataArg) {
