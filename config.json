@@ -23,7 +23,7 @@
     },
     {
       "key": "ENABLE_ADS_ON_EVERY_SEARCH",
-      "value": true
+      "value": false
     },
     {
       "key": "ENABLE_ADS_ON_BOOK_DETAILS",
