@@ -27,7 +27,7 @@
     },
     {
       "key": "ENABLE_ADS_ON_BOOK_DETAILS",
-      "value": false
+      "value": true
     },
     {
       "key": "BOOK_SEARCH_SITES_DATA",
