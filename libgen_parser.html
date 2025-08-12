@@ -82,34 +82,36 @@
           };
     
           const books = Array.from(bookNodes).map(node => {
-            // Title: <h3 class="color1" itemprop="name">
-            const titleEl = node.querySelector('h3.color1[itemprop="name"]');
-            const title = titleEl?.textContent?.trim() || '';
-    
-            // Link: <a href="book/1073785"><h3 ...>...</h3></a>
-            // Prefer the closest <a> that wraps the h3, else any link to /book/
-            let linkEl = titleEl?.closest('a') || node.querySelector('a[href*="book/"]');
-            const href = toAbsoluteLink(linkEl?.getAttribute('href') || '');
-    
-            // Image: <img src="//i.booksee.org/covers/...">
-            const imgEl = node.querySelector('img');
-            const image = toAbsolute(imgEl?.getAttribute('src') || '');
-    
-            // Try to extract numeric book id from href like ".../book/1073785"
-            let bookId = '';
-            if (href) {
-              const m = href.match(/\/book\/(\d+)(?:\/|$)/) || href.match(/book\/(\d+)/);
-              if (m) bookId = m[1];
-            }
-    
-            return {
-              title,
-              image,
-              link: href,
-              bookId,
-              source: 'booksee'
-            };
-          }).filter(b => b.title && b.link);
+              const titleEl = node.querySelector('h3.color1[itemprop="name"]');
+              const title = titleEl?.textContent?.trim() || '';
+            
+              let linkEl = titleEl?.closest('a') || node.querySelector('a[href*="book/"]');
+              let rawHref = linkEl?.getAttribute('href') || '';
+            
+              // Extract bookId from any variant of /book/{id}
+              let bookId = '';
+              const m = rawHref.match(/\/book\/(\d+)/);
+              if (m) {
+                bookId = m[1];
+              }
+            
+              // Build new mobile URL
+              const href = bookId
+                ? `https://m.booksee.org/book/${bookId}?force_lang=en`
+                : '';
+            
+              const imgEl = node.querySelector('img');
+              const image = toAbsolute(imgEl?.getAttribute('src') || '');
+            
+              return {
+                title,
+                image,
+                link: href,
+                bookId,
+                source: 'booksee'
+              };
+            }).filter(b => b.title && b.link);
+
     
           return books;
         } catch (error) {
@@ -118,6 +120,97 @@
             console.error('Parsing error:', error.message);
           }
           throw error;
+        }
+      }
+
+      getBookInfo(resData, url, baseUrl) {
+        const decodeHtml = (b64) => decodeBase64UTF8(b64).replace(/<!--|-->/g, '');
+    
+        const toAbsolute = (src) => {
+          if (!src) return '';
+          if (src.startsWith('//')) return 'https:' + src;            // protocol-relative
+          if (src.startsWith('/'))  return baseUrl.replace(/\/+$/, '') + src; // root-relative
+          return src;
+        };
+    
+        const isImageUrl = (href) => {
+          if (!href) return false;
+          const h = href.toLowerCase();
+          return (
+            h.startsWith('data:image/') ||
+            h.match(/\.(jpg|jpeg|png|gif|webp|svg)(\?|#|$)/i) ||
+            h.includes('//i.booksee.org/')
+          );
+        };
+    
+        try {
+          const html = decodeHtml(resData);
+          const parser = new DOMParser();
+          const document = parser.parseFromString(html, 'text/html');
+    
+          // Title: <h1 class="ui-title" ...>
+          const titleEl = document.querySelector('h1.ui-title[role="heading"]') || document.querySelector('h1.ui-title');
+          const title = titleEl?.textContent?.trim() || '';
+    
+          // Image: <img style="width:200px" src="//i.booksee.org/covers/...">
+          const imgEl = document.querySelector('img[alt^="Book cover"]') || document.querySelector('img[style*="width:200px"]') || document.querySelector('img');
+          const image = toAbsolute(imgEl?.getAttribute('src') || '');
+    
+          // Main content area for mirrors
+          const content = document.querySelector('div.ui-content[role="main"][data-role="content"]') ||
+                          document.querySelector('div.ui-content[role="main"]') ||
+                          document.querySelector('div.ui-content');
+    
+          const anchors = content ? Array.from(content.querySelectorAll('a[href]')) : [];
+          const abs = (href) => {
+            if (!href) return '';
+            if (/^https?:\/\//i.test(href)) return href;
+            if (href.startsWith('//')) return 'https:' + href;
+            return baseUrl.replace(/\/+$/, '') + '/' + href.replace(/^\/+/, '');
+          };
+    
+          // Mirrors filtering rules:
+          // 1) Include if startsWith('https://booksee.org/dl/')
+          // 2) Otherwise include if NOT pointing to baseUrl (external) AND NOT an image URL
+          const mirrors = anchors
+            .map(a => abs(a.getAttribute('href')))
+            .filter(href => {
+              if (!href) return false;
+              if (href.startsWith('https://booksee.org/dl/')) return true;
+              if (href.includes(baseUrl)) return false;     // skip internal nav links
+              if (isImageUrl(href)) return false;           // skip images
+              return true;
+            })
+            // optional: dedupe while preserving order
+            .filter((href, idx, arr) => arr.indexOf(href) === idx);
+    
+          // Extract numeric bookId from the current URL (/book/{id})
+          let bookId = '';
+          try {
+            const u = new URL(url, baseUrl || 'https://m.booksee.org');
+            const m = u.pathname.match(/\/book\/(\d+)/);
+            if (m) bookId = m[1];
+          } catch (_) {
+            const m = (url || '').match(/\/book\/(\d+)/);
+            if (m) bookId = m[1];
+          }
+    
+          return {
+            title,
+            image,
+            link: url,
+            bookId,
+            mirrors
+          };
+        } catch (err) {
+          console.error('Error in BookSee.getBookInfo:', err);
+          return {
+            title: '',
+            image: '',
+            link: url || '',
+            bookId: '',
+            mirrors: []
+          };
         }
       }
     }
