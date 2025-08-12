@@ -172,15 +172,7 @@
             const imgEl = main.querySelector('img[data-src]') || main.querySelector('img[src]');
             const thumbnail = attr(imgEl, 'data-src') || attr(imgEl, 'src');
 
-            // Mirrors: <a class="addDownloadedBook">
-            const mirrorsSet = new Set();
-            document.querySelectorAll('a.addDownloadedBook[href], a.addDownloadedBook[data-href]').forEach(a => {
-                const href = attr(a, 'href') || attr(a, 'data-href');
-                if (!href) return;
-                const full = abs(href);
-                if (full) mirrorsSet.add(full);
-            });
-            const mirrors = [...mirrorsSet, url];
+            const mirrors = [url];
 
             // Book ID from URL: /book/2166985/...
             let bookIdMD5 = '';
