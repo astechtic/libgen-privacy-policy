@@ -1,11 +1,11 @@
 {
   "ADS_DATA": [
     {
-      "ads_key": "searchly_ads",
-      "image": "https://storage.googleapis.com/univest-applications.appspot.com/pn_images/1756316662726_searchly_ads.png",
-      "url": "https://1337x-app.weebly.com/dl.html?q=P2FjdGlvbj1yb3V0ZSZ1cmw9aG9tZT9pbmRleD0w",
-      "show_status": false,
-      "ads_position": "BANNER_BOOK_DETAILS"
+      "ads_key": "ads_key",
+      "image": "image",
+      "url": "site_url",
+      "show_status": "status",
+      "ads_position": "ads_position"
     }
   ],
   "CONFIG_DATA": [
