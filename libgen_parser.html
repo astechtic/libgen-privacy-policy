@@ -1216,57 +1216,105 @@
 
     class AnnasArchive {
         async searchBooks(query, siteDataArg) {
-            try {
-                if (!query || !siteDataArg) {
-                    throw new Error("Invalid input: query and siteDataArg are required");
-                }
-                const siteData = typeof siteDataArg === "string" ? JSON.parse(siteDataArg) : siteDataArg;
-                const { primarySource, searchPath } = siteData;
-                if (!primarySource || !searchPath) {
-                    throw new Error("Invalid site data: missing primarySource or searchPath");
-                }
-                const url = `${primarySource}${searchPath.replace("{SEARCH_QUERY}", encodeURIComponent(query))}`;
-                const apiCallMethod = { url: url, method: "GET", runInIsolate: true };
-                const result = await window.flutter_inappwebview.callHandler("curlRequest", apiCallMethod);
-                if (result.statusCode !== 200) {
-                    console.warn(`Request failed with status code: ${result.statusCode}`);
-                    return null;
-                }
-
-                const decodedData = decodeBase64UTF8(result.data).replace(/<!--|\-->/g, "");
-                const parser = new DOMParser();
-                const document = parser.parseFromString(decodedData, "text/html");
-                const bookElements = document.getElementsByClassName("js-vim-focus custom-a flex items-center");
-                const bookList = Array.from(bookElements)
-                    .map((element) => {
-                        const titleElement = element.querySelector("h3");
-                        const imageElement = element.querySelector("img");
-                        const authorElements = element.getElementsByClassName("italic");
-                        const publisherElements = element.getElementsByClassName("truncate");
-                        const infoElements = element.getElementsByClassName("text-gray-500");
-                        const link = element.getAttribute("href");
-                        if (!link || !titleElement) return null;
-                        return {
-                            title: titleElement.textContent?.trim() || "",
-                            author: authorElements.length > 0 ? authorElements[0].textContent?.trim() : "",
-                            image: imageElement?.getAttribute("src") || "",
-                            link: `${primarySource}${link}`,
-                            bookIdMD5: link.split("/").pop(),
-                            publisher: publisherElements.length > 0 ? publisherElements[0].textContent?.trim() || "" : "",
-                            info: infoElements.length > 0 ? infoElements[0].textContent?.trim() : "",
-                            source: "annasArchive",
-                        };
-                    })
-                    .filter((book) => book && book.title);
-
-                return bookList;
-            } catch (error) {
-                console.error("Error in book search:", error);
-                if (error instanceof SyntaxError) {
-                    console.error("Parsing error:", error.message);
-                }
-                throw error;
+          try {
+            if (!query || !siteDataArg) {
+              throw new Error("Invalid input: query and siteDataArg are required");
             }
+        
+            const siteData =
+              typeof siteDataArg === "string" ? JSON.parse(siteDataArg) : siteDataArg;
+            const { primarySource, searchPath } = siteData || {};
+            if (!primarySource || !searchPath) {
+              throw new Error("Invalid site data: missing primarySource or searchPath");
+            }
+        
+            const path = searchPath.replace("{SEARCH_QUERY}", encodeURIComponent(query));
+            const url = new URL(path, primarySource).toString();
+        
+            const apiCallMethod = { url, method: "GET", runInIsolate: true };
+            const result = await window.flutter_inappwebview.callHandler(
+              "curlRequest",
+              apiCallMethod
+            );
+            if (!result || result.statusCode !== 200) {
+              console.warn(`Request failed with status code: ${result?.statusCode}`);
+              return null;
+            }
+        
+            // utils
+            const stripComments = (html) => html.replace(/<!--[\s\S]*?-->/g, "");
+            const txt = (el) => (el?.textContent || "").trim();
+            const toAbs = (href, base) => {
+              try { return href ? new URL(href, base).toString() : ""; } catch { return ""; }
+            };
+            const md5FromUrl = (u) => {
+              try {
+                const { pathname } = new URL(u);
+                const segs = pathname.split("/").filter(Boolean);
+                const last = segs[segs.length - 1] || "";
+                const m = last.match(/[a-f0-9]{32}$/i);
+                return (m ? m[0] : last).toLowerCase();
+              } catch { return ""; }
+            };
+        
+            const decoded = stripComments(decodeBase64UTF8(result.data));
+            const document = new DOMParser().parseFromString(decoded, "text/html");
+        
+            // YOUR described structure:
+            // <table class="text-sm w-full mt-4 h-fit"> -> <tr> ... <td>...</td>
+            const table = document.querySelector("table.text-sm.w-full.mt-4.h-fit");
+            if (!table) return [];
+        
+            const rows = Array.from(table.querySelectorAll("tr"));
+            const books = [];
+        
+            for (const tr of rows) {
+              const tds = tr.querySelectorAll("td");
+              if (!tds.length) continue; // skip header rows
+        
+              // index 0 td -> a + img
+              const linkEl = tds[0]?.querySelector("a[href]");
+              const imgEl = tds[0]?.querySelector("img");
+              const link = toAbs(linkEl?.getAttribute("href") || "", primarySource);
+              const image = toAbs(imgEl?.getAttribute("src") || "", primarySource);
+        
+              const title = txt(tds[1]);       // index 1 td -> title text
+              if (!link || !title) continue;
+        
+              const author = txt(tds[2]);      // index 2 td -> author text
+              const publisher = txt(tds[3]);   // index 3 td -> publisher text
+              const year = txt(tds[4]);        // index 4 td -> year text
+              const language = txt(tds[7]);    // index 7 td -> language text
+              const type = txt(tds[9]);        // index 9 td -> type text
+              const size = txt(tds[10]);       // index 10 td -> size text
+        
+              const infoParts = [];
+              if (year) infoParts.push(`year: ${year}`);
+              if (language) infoParts.push(`language: ${language}`);
+              if (type) infoParts.push(`type: ${type}`);
+              if (size) infoParts.push(`size: ${size}`);
+              const info = infoParts.join(" · ");
+        
+              books.push({
+                title,
+                author,
+                image,
+                link,
+                bookIdMD5: md5FromUrl(link),   // last path segment (e.g., 32-char md5)
+                publisher,
+                info,
+                source: "annasArchive",
+              });
+            }
+        
+            return books.filter((b) => b && b.title);
+          } catch (error) {
+            console.error("Error in book search:", error);
+            if (error instanceof SyntaxError) {
+              console.error("Parsing error:", error.message);
+            }
+            throw error;
+          }
         }
 
         getBookInfo(resData, url, baseUrl) {
