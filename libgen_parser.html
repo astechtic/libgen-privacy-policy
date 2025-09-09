@@ -1330,10 +1330,20 @@
                 return {};
             }
 
-            let title = main.getElementsByClassName("text-3xl font-bold")[0]?.textContent || "";
-            let author = main.getElementsByClassName("italic")[0]?.textContent || "";
-            let publisher = main.getElementsByClassName("text-md")[0]?.textContent || "";
-            let info = main.getElementsByClassName("text-sm text-gray-500")[0]?.textContent || "";
+            let title = main.getElementsByClassName("font-semibold text-2xl leading-[1.2] mt-2")[0]?.textContent || "";
+            let author = main.getElementsByClassName("icon-[mdi--user-edit] text-base align-[-3px]")[0]?.textContent || "";
+            let publisher = main.getElementsByClassName("icon-[mdi--company] text-base align-[-3px]")[0]?.textContent || "";
+
+
+            // Extract info text but remove <a> tag content
+            let infoDiv = main.getElementsByClassName("text-gray-800 dark:text-slate-400 font-semibold text-sm leading-[1.2] mt-4")[0];
+            let info = "";
+            if (infoDiv) {
+                let clone = infoDiv.cloneNode(true);
+                clone.querySelectorAll("a, script").forEach(el => el.remove());
+                info = clone.textContent.trim();
+            }
+
             let description = main.getElementsByClassName("mt-4 line-clamp-[10] js-md5-top-box-description")[0]?.textContent || "";
             let thumbnail = main.querySelector("img")?.getAttribute("src") || "";
 
@@ -1344,12 +1354,16 @@
                     let href = a.getAttribute("href");
                     if (href.startsWith("https://")) {
                         if (href) {
-                            if (!(href.includes("cloudconvert.com") || href.includes("amazon.com"))) {
+                            if (!(href.includes('cloudconvert.com') ||
+                                href.includes('amazon.com'))) {
                                 mirrors.push(href);
                             }
                         }
-                    } else if (href && (href.startsWith("/slow_download") || href.startsWith("/ipfs_downloads") || href.startsWith("/scidb"))) {
-                        mirrors.push(baseUrl + href.toString().replace("/scidb?doi=", "/scidb/"));
+                    } else if (href &&
+                        (href.startsWith('/slow_download') ||
+                            href.startsWith('/ipfs_downloads') ||
+                            href.startsWith('/scidb'))) {
+                        mirrors.push(baseUrl + href.toString().replace('/scidb?doi=', '/scidb/'));
                     }
                 });
             });
