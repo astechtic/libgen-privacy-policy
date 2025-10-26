@@ -1658,6 +1658,54 @@
             return found ? found.textContent.trim() : "";
         }
     }
+
+
+    class CseGoogle {
+      parseSuggestions(responseText) {
+        if (typeof responseText !== 'string' || !responseText.length) return [];
+
+        // Strip JSONP callback wrapper: google.sbox.pXX(...)
+        let jsonStr = responseText.replace(/^.*?\(/, "").replace(/\);?$/, "");
+
+        // Strip potential XSSI prefix )]}'
+        jsonStr = jsonStr.replace(/^\)\]\}'\s*/, "");
+
+        try {
+          const data = JSON.parse(jsonStr);
+          const arr = Array.isArray(data?.[1]) ? data[1] : [];
+          return arr.map(item => (Array.isArray(item) ? item[0] : item)).filter(Boolean);
+        } catch {
+          return [];
+        }
+      }
+
+      async fetchSuggestions(query) {
+        try {
+          if (!query) return [];
+          const url =
+            `https://clients1.google.com/complete/search` +
+            `?client=partner-web&hl=en&partnerid=50c5ac9923f4a4b9b&types=t&ds=cse&q=${encodeURIComponent(query)}`;
+
+          if (!window.flutter_inappwebview?.callHandler) {
+            // If the flutter bridge isn't available, fail gracefully
+            return [];
+          }
+
+          const result = await window.flutter_inappwebview.callHandler('curlRequest', {
+            url,
+            method: 'GET',
+            runInIsolate: true
+          });
+
+          // curlRequest returns: { data: base64(utf8(response.data)), statusCode }
+          const text = decodeBase64UTF8(result?.data || "");
+          if (!text) return [];
+          return this.parseSuggestions(text);
+        } catch {
+          return [];
+        }
+      }
+    }
 </script>
 </body>
 </html>
