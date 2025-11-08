@@ -19,7 +19,7 @@
     },
     {
       "key": "ADS_MOB_COOLDOWN_MIN",
-      "value": 60
+      "value": 2
     },
     {
       "key": "ENABLE_ADS_ON_READEST_INIT",
