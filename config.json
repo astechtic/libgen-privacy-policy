@@ -18,8 +18,12 @@
       "value": true
     },
     {
+      "key": "ADS_MOB_COOLDOWN_MIN",
+      "value": 60
+    },
+    {
       "key": "ENABLE_ADS_ON_READEST_INIT",
-      "value": true
+      "value": false
     },
     {
       "key": "ENABLE_ADS_ON_READEST_BOOK_CLICK",
