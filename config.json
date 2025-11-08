@@ -15,7 +15,7 @@
     },
     {
       "key": "ENABLE_ADS_MOB",
-      "value": true
+      "value": false
     },
     {
       "key": "ADS_MOB_COOLDOWN_MIN",
