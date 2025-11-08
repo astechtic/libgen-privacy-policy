@@ -18,6 +18,14 @@
       "value": true
     },
     {
+      "key": "ENABLE_ADS_ON_READEST_INIT",
+      "value": true
+    },
+    {
+      "key": "ENABLE_ADS_ON_READEST_BOOK_CLICK",
+      "value": true
+    },
+    {
       "key": "ENABLE_ADS_ON_BOOK_DETAILS_INIT",
       "value": false
     },
