@@ -27,7 +27,7 @@
     },
     {
       "key": "ENABLE_ADS_ON_READEST_BOOK_CLICK",
-      "value": false
+      "value": true
     },
     {
       "key": "ENABLE_ADS_ON_BOOK_DETAILS_INIT",
