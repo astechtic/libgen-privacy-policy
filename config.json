@@ -62,6 +62,14 @@
       "value": false
     },
     {
+      "key": "UNITY_INTERSTITIAL_AD",
+      "value": "Interstitial_ads"
+    },
+    {
+      "key": "UNITY_REWARDED_AD",
+      "value": "Rewarded_Android"
+    },
+    {
       "key": "ENABLE_SCIHUB",
       "value": false
     },
