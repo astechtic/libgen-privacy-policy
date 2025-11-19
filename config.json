@@ -70,6 +70,18 @@
       "value": "Rewarded_Android"
     },
     {
+      "key": "ENABLE_IRON_SOURCE",
+      "value": true
+    },
+    {
+      "key": "IRON_SOURCE_REWARDED_AD",
+      "value": "tks53i852cra6qx7"
+    },
+    {
+      "key": "IRON_SOURCE_INTERSTITIAL_AD",
+      "value": "j2q7tszqzc8xx9n9"
+    },
+    {
       "key": "ENABLE_SCIHUB",
       "value": false
     },
