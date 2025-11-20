@@ -59,7 +59,7 @@
     },
     {
       "key": "ENABLE_INTERSTITIAL_ADS",
-      "value": false
+      "value": true
     },
     {
       "key": "UNITY_INTERSTITIAL_AD",
@@ -71,7 +71,7 @@
     },
     {
       "key": "ENABLE_IRON_SOURCE",
-      "value": false
+      "value": true
     },
     {
       "key": "IRON_SOURCE_REWARDED_AD",
