@@ -71,7 +71,7 @@
     },
     {
       "key": "ENABLE_IRON_SOURCE",
-      "value": false
+      "value": true
     },
     {
       "key": "IRON_SOURCE_REWARDED_AD",
