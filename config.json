@@ -59,7 +59,7 @@
     },
     {
       "key": "ENABLE_INTERSTITIAL_ADS",
-      "value": false
+      "value": true
     },
     {
       "key": "UNITY_INTERSTITIAL_AD",
