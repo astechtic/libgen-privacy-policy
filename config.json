@@ -31,7 +31,7 @@
     },
     {
       "key": "ENABLE_ADS_ON_BOOK_DETAILS_INIT",
-      "value": true
+      "value": false
     },
     {
       "key": "ENABLE_ADS_ON_SEARCH_INIT",
@@ -39,11 +39,11 @@
     },
     {
       "key": "ENABLE_ADS_ON_EVERY_SEARCH",
-      "value": false
+      "value": true
     },
     {
       "key": "ENABLE_ADS_ON_BOOK_DETAILS",
-      "value": true
+      "value": false
     },
     {
       "key": "BOOK_SEARCH_SITES_DATA",
