@@ -1,9 +1,11 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>libgen_api_script</title>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8">
 </head>
+
 <body>
 <h1>libgen_api_script server working</h1>
 <script>
@@ -28,169 +30,191 @@
         }
     }
 
-    class GalaxyAudioBook {
+    class GoldenAudioBook {
       async searchBooks(query, siteDataArg) {
         if (!query || !siteDataArg) {
-          throw new Error("Invalid input: query and siteDataArg are required");
+            throw new Error("Invalid input: query and siteDataArg are required");
         }
 
-        const siteData = typeof siteDataArg === "string" ? JSON.parse(siteDataArg) : siteDataArg;
+        const siteData =
+            typeof siteDataArg === "string" ? JSON.parse(siteDataArg) : siteDataArg;
+
         const { primarySource, searchPath } = siteData || {};
+
         if (!primarySource || !searchPath) {
-          throw new Error("Invalid site data: missing primarySource or searchPath");
+            throw new Error("Invalid site data: missing primarySource or searchPath");
         }
 
+        // build search url
         const path = searchPath.replace("{SEARCH_QUERY}", encodeURIComponent(query));
         const url = new URL(path, primarySource).href;
 
         let result;
+
         try {
-          result = await window.flutter_inappwebview.callHandler("curlRequest", {
+            result = await window.flutter_inappwebview.callHandler("curlRequest", {
             url,
             method: "GET",
             runInIsolate: true,
-          });
+            });
         } catch (e) {
-          throw new Error(`Network error calling curlRequest: ${e?.message || e}`);
+            throw new Error(`Network error calling curlRequest: ${e?.message || e}`);
         }
 
         if (!result || result.statusCode !== 200 || !result.data) {
-          console.warn(`Request failed or empty: ${result?.statusCode}`);
-          return [];
+            console.warn(`Request failed or empty: ${result?.statusCode}`);
+            return [];
         }
 
         let decoded;
+
         try {
-          decoded = decodeBase64UTF8(result.data);
+            decoded = decodeBase64UTF8(result.data);
         } catch (e) {
-          throw new Error(`Failed to decode response: ${e?.message || e}`);
+            throw new Error(`Failed to decode response: ${e?.message || e}`);
         }
 
         const parser = new DOMParser();
         const doc = parser.parseFromString(decoded, "text/html");
-        const cards = doc.querySelectorAll("div.col-sm-12.col-md-4.col-lg-4.mb-4");
 
-        const books = Array.from(cards).map((card) => {
-          const titleEl = card.querySelector("p.normal-title-1");
-          const imgEl = card.querySelector("img.img-fluid");
-          const anchorEl = card.querySelector("a[href]");
+        const articles = doc.querySelectorAll("article");
 
-          if (!anchorEl || !titleEl) return null;
+        const books = Array.from(articles)
+            .map((article) => {
+                const titleEl = article.querySelector("h2.title-post");
+                const linkEl = article.querySelector("h2.title-post a");
+                const coverImg = article.querySelector("div.post-cover img");
 
-          const absoluteLink = new URL(anchorEl.getAttribute("href"), primarySource).href;
+                if (!titleEl || !linkEl) return null;
 
-          let bookIdMD5 = "";
-          try {
-            const u = new URL(absoluteLink);
-            bookIdMD5 = u.searchParams.get("id") || "";
-          } catch {
-            // ignore URL parsing error
-          }
+                const title = titleEl.textContent?.trim() || "";
 
-          return {
-            title: titleEl.textContent?.trim() || "",
-            image: imgEl?.getAttribute("src") || "",
-            link: absoluteLink,
-            bookIdMD5,
-            source: "galaxyaudiobook",
-          };
-        }).filter(Boolean);
-
-        return books;
-      }
-
-      getBookInfo(resData, url, baseUrl) {
-          const TAG = "[GalaxyAudioBook.getBookInfo]";
-          console.groupCollapsed(`${TAG} start`);
-
-          try {
-            // Decode base64
-            let decoded;
-            try {
-              decoded = decodeBase64UTF8(resData);
-            } catch (e) {
-              console.error(`${TAG} base64 decode failed:`, e);
-              throw new Error(`Failed to decode detail page: ${e?.message || e}`);
-            }
-
-            // Parse DOM
-            const parser = new DOMParser();
-            const doc = parser.parseFromString(decoded, "text/html");
-
-            // ✅ New: Find title & info inside inside-page-hero div
-            const heroDiv = doc.querySelector("div.inside-page-hero.grid-container.grid-parent");
-
-            let title = "";
-            let info = "";
-
-            if (heroDiv) {
-              const titleEl = heroDiv.querySelector("h1");
-              const infoEl = heroDiv.querySelector("p");
-              title = titleEl?.textContent?.trim() || "";
-              info = infoEl?.textContent?.trim() || "";
-            } else {
-              console.warn(`${TAG} .inside-page-hero div not found`);
-            }
-
-            // ✅ Thumbnail inside <main> → <article> → <img>
-            let thumbnail = "";
-            const article = doc.querySelector("main article");
-            if (article) {
-              const img = article.querySelector("img");
-              const src = img?.getAttribute("src") || "";
-              if (src) {
+                let link = linkEl.getAttribute("href") || "";
                 try {
-                  const resolved = /^https?:\/\//i.test(src) ? src : new URL(src, baseUrl || url).href;
-                  thumbnail = resolved;
-                } catch (e) {
-                  console.warn(`${TAG} thumbnail URL resolve failed`, e);
-                  thumbnail = src;
+                link = new URL(link, primarySource).href;
+                } catch {}
+
+                // Image parsing
+                let image = "";
+                if (coverImg) {
+                const src =
+                    coverImg.getAttribute("src") ||
+                    coverImg.getAttribute("data-src") ||
+                    coverImg.getAttribute("data-lazy-src") ||
+                    "";
+
+                try {
+                    image = src ? new URL(src, primarySource).href : "";
+                } catch {
+                    image = src;
                 }
-              }
-            } else {
-              console.warn(`${TAG} article not found for thumbnail`);
-            }
+                }
 
-            // Mirrors
-            const linkHref = typeof url === "string" ? url : (url?.toString?.() || "");
-            const mirrors = [
-              `${linkHref}#newPlayerBox`,
-              `https://zaudiobooks.com/?s=${encodeURIComponent(title || "")}`,
-            ];
+                const bookIdMD5 = link.split("/").filter(Boolean).pop() || "";
 
-            // bookIdMD5 from last URL segment
-            let bookIdMD5 = "";
+                return {
+                title,
+                image,
+                link,
+                bookIdMD5,
+                source: "goldenaudiobook",
+                };
+            })
+            .filter(Boolean);
+
+            return books;
+        }
+
+        getBookInfo(resData, url, baseUrl) {
+            const TAG = "[GoldenAudioBook.getBookInfo]";
+            console.groupCollapsed(`${TAG} start`);
+
             try {
-              const u = new URL(linkHref);
-              bookIdMD5 = u.pathname.split("/").filter(Boolean).pop() || "";
-            } catch {
-              bookIdMD5 = linkHref.split(/[?#]/)[0].split("/").filter(Boolean).pop() || "";
-            }
+                // Decode base64 HTML
+                let decoded;
+                try {
+                decoded = decodeBase64UTF8(resData);
+                } catch (e) {
+                console.error(`${TAG} base64 decode failed`, e);
+                throw new Error(`Failed to decode detail page: ${e?.message || e}`);
+                }
 
-            // Final validation
-            if (!title && !info && !thumbnail) {
-              console.warn(`${TAG} page did not match expected structure; returning null`);
-              console.groupEnd();
-              return null;
-            }
+                // Parse DOM
+                const parser = new DOMParser();
+                const doc = parser.parseFromString(decoded, "text/html");
 
-            const result = {
-              title,
-              info,
-              thumbnail,
-              description: "",
-              author: "",
-              publisher: "",
-              link: linkHref,
-              bookIdMD5,
-              mirrors,
-            };
-            return result;
-          } catch (err) {
-            console.error(`${TAG} error:`, err);
-            console.groupEnd();
-            throw err;
-          }
+                // Title
+                const titleEl = doc.querySelector("h1.title-page");
+                const title = titleEl?.textContent?.trim() || "";
+
+                // Info
+                const infoEl = doc.querySelector("p.post-meta");
+                const info = infoEl?.textContent?.trim() || "";
+
+                // Thumbnail
+                let thumbnail = "";
+                const figure = doc.querySelector("figure.wp-caption img");
+
+                if (figure) {
+                const src = figure.getAttribute("src") || "";
+
+                try {
+                    thumbnail = /^https?:\/\//i.test(src)
+                    ? src
+                    : new URL(src, baseUrl || url).href;
+                } catch {
+                    thumbnail = src;
+                }
+                }
+
+                // Mirrors (just the original page)
+                const linkHref =
+                typeof url === "string" ? url : (url?.toString?.() || "");
+
+                const mirrors = [linkHref];
+
+                // Extract bookId from URL
+                let bookIdMD5 = "";
+
+                try {
+                const u = new URL(linkHref);
+                bookIdMD5 =
+                    u.pathname
+                    .split("/")
+                    .filter(Boolean)
+                    .pop()
+                    ?.replace(".html", "") || "";
+                } catch {
+                bookIdMD5 = linkHref.split("/").filter(Boolean).pop() || "";
+                }
+
+                // Validate
+                if (!title && !thumbnail && !info) {
+                console.warn(`${TAG} page structure mismatch`);
+                console.groupEnd();
+                return null;
+                }
+
+                const result = {
+                title,
+                info,
+                thumbnail,
+                description: "",
+                author: "",
+                publisher: "",
+                link: linkHref,
+                bookIdMD5,
+                mirrors
+                };
+
+                console.groupEnd();
+                return result;
+
+            } catch (err) {
+                console.error(`${TAG} error`, err);
+                console.groupEnd();
+                throw err;
+            }
         }
     }
 
