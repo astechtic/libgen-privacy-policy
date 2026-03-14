@@ -1660,6 +1660,143 @@
     }
 
 
+    class GoogleSearch {
+
+      // --- Private helpers ---
+
+      _buildSearchUrl(cseLib, cseToken, expArr, query) {
+        const u = new URL('https://cse.google.com/cse/element/v1');
+        const params = {
+          rsz: 'filtered_cse',
+          num: '50',
+          hl: 'en',
+          cselibv: cseLib,
+          cx: 'd3dffbd292980410f',
+          q: query,
+          safe: 'active',
+          cse_tok: cseToken,
+          exp: expArr.join(','),
+          callback: 'google.search.cse.api18151',
+          rurl: 'https://www.google.com',
+          _: Date.now().toString(),
+        };
+        Object.entries(params).forEach(([k, v]) => {
+          if (v !== undefined && v !== null && v !== '') u.searchParams.set(k, String(v));
+        });
+        return u.toString();
+      }
+
+      _parseJsonp(text) {
+        const m = text.match(/google\.search\.cse\.\w+\s*\(\s*([\s\S]*?)\s*\)\s*;?\s*$/);
+        if (!m) return null;
+        try { return JSON.parse(m[1].replace(/,\s*([}\]])/g, '$1')); } catch { return null; }
+      }
+
+      _extractImage(item) {
+        return item?.richSnippet?.cseImage?.src
+          || (Array.isArray(item?.richSnippet?.cseImages) ? item.richSnippet.cseImages[0]?.src : '')
+          || '';
+      }
+
+      _extractMD5(url) {
+        const m = (url || '').match(/[a-fA-F0-9]{32}/);
+        return m ? m[0] : '';
+      }
+
+      // --- Fetch CSE bootstrap tokens (call once; store result in siteData for searches) ---
+      async setInitVariable(baseUrl) {
+        const empty = { cse_token_for_google_search: '', exp_for_google_search: [], cselibVersion_for_google_search: '' };
+        try {
+          if (!window.flutter_inappwebview?.callHandler) return empty;
+          if (typeof decodeBase64UTF8 !== 'function') return empty;
+
+          let jsUrl = 'https://cse.google.com/cse.js?cx=d3dffbd292980410f';
+          if (baseUrl) {
+            try { jsUrl = new URL('cse.js?cx=d3dffbd292980410f', baseUrl).toString(); } catch {}
+          }
+
+          const raw = await window.flutter_inappwebview.callHandler('curlRequest', { url: jsUrl, method: 'GET', runInIsolate: true });
+          const body = decodeBase64UTF8(raw?.data || '');
+          if (!body) return empty;
+
+          let opts = {};
+          const m = body.match(/\}\)\(\s*({[\s\S]*?})\s*\);?/);
+          if (m) {
+            try {
+              opts = JSON.parse(m[1].replace(/,\s*([}\]])/g, '$1'));
+            } catch {
+              opts = {
+                cse_token: (body.match(/"cse_token"\s*:\s*"([^"]+)"/) || [])[1] || '',
+                cselibVersion: (body.match(/"cselibVersion"\s*:\s*"([^"]+)"/) || [])[1] || '',
+                exp: ((body.match(/"exp"\s*:\s*\[([\s\S]*?)\]/) || [])[1] || '')
+                  .split(',').map(s => s.replace(/[\s"']/g, '')).filter(Boolean),
+              };
+            }
+          }
+
+          return {
+            cse_token_for_google_search: opts.cse_token || '',
+            exp_for_google_search: Array.isArray(opts.exp) ? opts.exp : [],
+            cselibVersion_for_google_search: opts.cselibVersion || '',
+          };
+        } catch {
+          return empty;
+        }
+      }
+
+      // --- Search — returns PdfRoom-compatible book data model ---
+      async searchBooks(query, siteDataArg) {
+        try {
+          if (!query || !siteDataArg) return [];
+          if (!window.flutter_inappwebview?.callHandler) return [];
+          if (typeof decodeBase64UTF8 !== 'function') return [];
+
+          query = query.trim() + ' filetype:pdf'; // Force PDF results since Google Search API doesn't allow filtering by filetype via params
+
+          const siteData = typeof siteDataArg === 'string' ? JSON.parse(siteDataArg) : siteDataArg;
+
+          // Fetch fresh CSE bootstrap tokens on every search call
+          const tokens = await this.setInitVariable();
+          const CSE_LIB = tokens.cselibVersion_for_google_search.trim();
+          const CSE_TOKEN = tokens.cse_token_for_google_search.trim();
+          const expArr = tokens.exp_for_google_search.map(String);
+
+          if (!CSE_LIB || !CSE_TOKEN) return [];
+
+          const result = await window.flutter_inappwebview.callHandler('curlRequest', {
+            url: this._buildSearchUrl(CSE_LIB, CSE_TOKEN, expArr, query),
+            method: 'GET',
+            runInIsolate: true,
+          });
+
+          const body = decodeBase64UTF8(result?.data || '');
+          if (!body) return [];
+
+          const parsed = this._parseJsonp(body);
+          const items = Array.isArray(parsed?.results) ? parsed.results : [];
+          const source = siteData.key || 'googlesearch';
+
+          return items.map(it => {
+            const title = (it?.titleNoFormatting || it?.title || '').replace(/\s+/g, ' ').trim();
+            const link = it?.unescapedUrl || it?.url || it?.clicktrackUrl || '';
+            if (!title || !link) return null;
+            return {
+              title,
+              author: '',
+              image: this._extractImage(it),
+              link,
+              bookIdMD5: this._extractMD5(link),
+              publisher: '',
+              info: (it?.contentNoFormatting || it?.content || '').replace(/\s+/g, ' ').trim(),
+              source,
+            };
+          }).filter(Boolean);
+        } catch {
+          return [];
+        }
+      }
+    }
+
     class CseGoogle {
       parseSuggestions(responseText) {
         if (typeof responseText !== 'string' || !responseText.length) return [];
