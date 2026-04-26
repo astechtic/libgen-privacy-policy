@@ -82,6 +82,18 @@
       "value": "hihejvt6epmnrwg3"
     },
     {
+      "key": "ENABLE_LIFTOFF",
+      "value": true
+    },
+    {
+      "key": "LIFTOFF_REWARDED_AD",
+      "value": "REWARDED_ADS-8938983"
+    },
+    {
+      "key": "LIFTOFF_INTERSTITIAL_AD",
+      "value": "INT_BID-1012767"
+    },
+    {
       "key": "ENABLE_SCIHUB",
       "value": false
     },
