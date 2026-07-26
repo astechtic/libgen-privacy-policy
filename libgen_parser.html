@@ -1406,69 +1406,6 @@
         }
     }
 
-    class AnnasArchiveScihub {
-        getSciHubDBdata(resData, url, baseUrl) {
-            try {
-                const parser = new DOMParser();
-                const document = parser.parseFromString(decodeBase64UTF8(resData), "text/html");
-
-                let fileDownloadUrl = "";
-                let otherUrls = "";
-                let title = "";
-                let info = "";
-                let pub = "";
-
-                const bookDetails = document.getElementsByClassName("text-xs");
-                if (bookDetails.length > 0) {
-                    const metadata = bookDetails[0].getElementsByTagName("div");
-                    for (let i = 0; i < metadata.length; i++) {
-                        if (i === 0) {
-                            info = metadata[i].textContent.trim();
-                        } else if (i === 1) {
-                            title = metadata[i].textContent.trim();
-                        } else {
-                            pub += metadata[i].textContent.trim() + " ";
-                        }
-                    }
-                }
-
-                const bookUrls = document.getElementsByClassName("text-sm");
-                if (bookUrls.length > 0) {
-                    const index = Array.from(bookUrls).findIndex((element) => element.textContent.toLowerCase().includes("download"));
-                    if (index !== -1) {
-                        const allUrls = bookUrls[index].getElementsByTagName("a");
-
-                        Array.from(allUrls).forEach((element) => {
-                            const href = element.getAttribute("href") || "";
-                            if (href.includes(".pdf")) {
-                                fileDownloadUrl = href;
-                            } else {
-                                const fullUrl = href.includes("/md5") ? baseUrl + href : href;
-                                otherUrls += "\n<a href=" + fullUrl + ">" + element.textContent + " :" + fullUrl + "</a>";
-                            }
-                        });
-                    }
-                }
-
-                return {
-                    title: title,
-                    author: "",
-                    thumbnail: "",
-                    publisher: pub.trim(),
-                    info: info.trim(),
-                    link: url,
-                    bookIdMD5: url,
-                    format: "pdf",
-                    mirrors: [fileDownloadUrl],
-                    description: otherUrls,
-                };
-            } catch (error) {
-                console.error("Error in getting book info:", error);
-            }
-            return {};
-        }
-    }
-
     class PdfDrive {
         async searchBooks(query, siteDataArg) {
             try {
