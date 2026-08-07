@@ -1,0 +1,105 @@
+{
+  "ADS_DATA": [
+    {
+      "ads_key": "ads_key",
+      "image": "image",
+      "url": "site_url",
+      "show_status": "status",
+      "ads_position": "ads_position"
+    }
+  ],
+  "CONFIG_DATA": [
+    {
+      "key": "SUPPORTING_BUSINESS_AD",
+      "value": "{\n          \"image\": \"https://storage.googleapis.com/univest-applications.appspot.com/pn_images/1756395739860_searchly_ad.png\",\n          \"onImageTapAction\": \"openUrl\",\n          \"enable\": false,\n          \"onImageTapUrl\": \"https://1337x-app.weebly.com/dl.html?q=P2FjdGlvbj1yb3V0ZSZ1cmw9aG9tZT9pbmRleD0w\"\n        }"
+    },
+    {
+      "key": "ENABLE_ADS_MOB",
+      "value": false
+    },
+    {
+      "key": "ADS_MOB_COOLDOWN_MIN",
+      "value": 2
+    },
+    {
+      "key": "ENABLE_ADS_ON_READEST_INIT",
+      "value": false
+    },
+    {
+      "key": "ENABLE_ADS_ON_READEST_BOOK_CLICK",
+      "value": true
+    },
+    {
+      "key": "ENABLE_ADS_ON_BOOK_DETAILS_INIT",
+      "value": false
+    },
+    {
+      "key": "ENABLE_ADS_ON_SEARCH_INIT",
+      "value": false
+    },
+    {
+      "key": "ENABLE_ADS_ON_EVERY_SEARCH",
+      "value": true
+    },
+    {
+      "key": "ENABLE_ADS_ON_BOOK_DETAILS",
+      "value": true
+    },
+    {
+      "key": "BOOK_SEARCH_SITES_DATA",
+      "value": "[\n  {\n    \"key\": \"annasArchive\",\n    \"primarySource\": \"https://annas-archive.gl\",\n    \"dataParseClassName\": \"AnnasArchive\",\n    \"siteTitle\": \"AnnasArchive\",\n    \"searchPath\": \"/search?index=&page=1&sort=&display=table&q={SEARCH_QUERY}\",\n    \"isEnable\": true,\n    \"isDdl\": false,\n    \"sources\": [\n      \"https://annas-archive.gl\",\n      \"https://annas-archive.pk\",\n      \"https://annas-archive.gd\"\n    ]\n  },\n  {\n    \"key\": \"zlibrary\",\n    \"primarySource\": \"https://1lib.sk\",\n    \"dataParseClassName\": \"Zlibrary\",\n    \"siteTitle\": \"Zlibrary\",\n    \"searchPath\": \"/s/{SEARCH_QUERY}\",\n    \"isEnable\": false,\n    \"isDdl\": false,\n    \"sources\": [\"https://1lib.sk\", \"https://z-lib.gd\", \"https://articles.sk\"]\n  },\n  {\n    \"key\": \"googlesearch\",\n    \"primarySource\": \"https://cse.google.com\",\n    \"dataParseClassName\": \"GoogleSearch\",\n    \"siteTitle\": \"Google Search\",\n    \"searchPath\": \"/\",\n    \"isEnable\": true,\n    \"isDdl\": true,\n    \"sources\": [\"https://cse.google.com\"]\n  },\n  {\n    \"key\": \"libgenGs\",\n    \"primarySource\": \"https://libgen.li\",\n    \"dataParseClassName\": \"LibgenGs\",\n    \"siteTitle\": \"LibgenGs\",\n    \"searchPath\":\n        \"/index.php?req={SEARCH_QUERY}&columns%5B%5D=t&columns%5B%5D=a&columns%5B%5D=s&columns%5B%5D=y&columns%5B%5D=p&columns%5B%5D=i&objects%5B%5D=f&topics%5B%5D=l&topics%5B%5D=c&topics%5B%5D=f&topics%5B%5D=a&topics%5B%5D=m&topics%5B%5D=r&topics%5B%5D=s&res=50&covers=on&showch=on&filesuns=all&curtab=f&order=year&ordermode=desc\",\n    \"isEnable\": true,\n    \"isDdl\": false,\n    \"sources\": [\n      \"https://libgen.li\",\n      \"https://libgen.gs\",\n      \"https://libgen.vg\",\n      \"https://libgen.la\",\n      \"https://libgen.bz\"\n    ]\n  },\n  {\n    \"key\": \"booksee\",\n    \"primarySource\": \"https://en.booksee.org\",\n    \"dataParseClassName\": \"BookSee\",\n    \"siteTitle\": \"BookSee\",\n    \"searchPath\": \"/s/?q={SEARCH_QUERY}&t=0\",\n    \"isEnable\": false,\n    \"isDdl\": false,\n    \"sources\": [\"https://en.booksee.org\"]\n  },\n  {\n    \"key\": \"ebookHunter\",\n    \"primarySource\": \"https://ebook-hunter.org\",\n    \"dataParseClassName\": \"EbookHunter\",\n    \"siteTitle\": \"EbookHunter\",\n    \"searchPath\": \"/search/?keyword={SEARCH_QUERY}&x=0&y=0\",\n    \"isEnable\": true,\n    \"isDdl\": false,\n    \"sources\": [\"https://ebook-hunter.org\"]\n  },\n  {\n    \"key\": \"pdfRoom\",\n    \"primarySource\": \"https://pdfroom.com\",\n    \"dataParseClassName\": \"PdfRoom\",\n    \"siteTitle\": \"PdfRoom\",\n    \"searchPath\": \"/search?query={SEARCH_QUERY}\",\n    \"isEnable\": true,\n    \"isDdl\": false,\n    \"sources\": [\"https://pdfroom.com\"]\n  },\n  {\n    \"key\": \"goldenaudiobook\",\n    \"primarySource\": \"https://goldenaudiobook.net\",\n    \"dataParseClassName\": \"GoldenAudioBook\",\n    \"siteTitle\": \"GoldenAudioBook\",\n    \"searchPath\": \"/?s={SEARCH_QUERY}\",\n    \"isEnable\": true,\n    \"sources\": [\"https://goldenaudiobook.net\"]\n  }\n]"
+    },
+    {
+      "key": "ENABLE_SNOWFL",
+      "value": false
+    },
+    {
+      "key": "ENABLE_INTERSTITIAL_ADS",
+      "value": false
+    },
+    {
+      "key": "UNITY_INTERSTITIAL_AD",
+      "value": "Interstitial_ads"
+    },
+    {
+      "key": "UNITY_REWARDED_AD",
+      "value": "Rewarded_ads"
+    },
+    {
+      "key": "ENABLE_IRON_SOURCE",
+      "value": true
+    },
+    {
+      "key": "IRON_SOURCE_REWARDED_AD",
+      "value": "o314b4cfsqe59rtv"
+    },
+    {
+      "key": "IRON_SOURCE_INTERSTITIAL_AD",
+      "value": "hihejvt6epmnrwg3"
+    },
+    {
+      "key": "IRON_SOURCE_REWARDED_AD_IOS",
+      "value": "y6w09u1jfyyuowwt"
+    },
+    {
+      "key": "IRON_SOURCE_INTERSTITIAL_AD_IOS",
+      "value": "4foidxgqrh7g44u0"
+    },
+    {
+      "key": "ENABLE_LIFTOFF",
+      "value": true
+    },
+    {
+      "key": "LIFTOFF_REWARDED_AD",
+      "value": "REWARDED_ADS-8938983"
+    },
+    {
+      "key": "LIFTOFF_INTERSTITIAL_AD",
+      "value": "INT_BID-1012767"
+    },
+    {
+      "key": "ENABLE_SCIHUB",
+      "value": false
+    },
+  ]
+}
