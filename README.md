@@ -39,4 +39,4 @@ This policy is effective as of **2021-11-01**.
 ## Contact Us
 
 If you have any questions or suggestions about our Privacy Policy, do not hesitate to contact us at:  
-📧 **astechtic.pvt.ltd@gmail.com**
+📧 **yaaratech@gmail.com**
