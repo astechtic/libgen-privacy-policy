@@ -1707,55 +1707,140 @@
 
       // --- Search — returns PdfRoom-compatible book data model ---
       async searchBooks(query, siteDataArg) {
-        try {
-          if (!query || !siteDataArg) return [];
-          if (!window.flutter_inappwebview?.callHandler) return [];
-          if (typeof decodeBase64UTF8 !== 'function') return [];
+            try {
+                if (!query || !siteDataArg) return [];
+                if (!window.flutter_inappwebview?.callHandler) return [];
+                if (typeof decodeBase64UTF8 !== 'function') return [];
 
-          query = query.trim() + ' filetype:pdf'; // Force PDF results since Google Search API doesn't allow filtering by filetype via params
+                const siteData =
+                    typeof siteDataArg === 'string'
+                        ? JSON.parse(siteDataArg)
+                        : siteDataArg;
 
-          const siteData = typeof siteDataArg === 'string' ? JSON.parse(siteDataArg) : siteDataArg;
+                const source = siteData.key || 'googlesearch';
 
-          // Fetch fresh CSE bootstrap tokens on every search call
-          const tokens = await this.setInitVariable();
-          const CSE_LIB = tokens.cselibVersion_for_google_search.trim();
-          const CSE_TOKEN = tokens.cse_token_for_google_search.trim();
-          const expArr = tokens.exp_for_google_search.map(String);
+                // Fetch CSE bootstrap tokens only once.
+                const tokens = await this.setInitVariable();
 
-          if (!CSE_LIB || !CSE_TOKEN) return [];
+                const CSE_LIB =
+                    tokens.cselibVersion_for_google_search?.trim();
 
-          const result = await window.flutter_inappwebview.callHandler('curlRequest', {
-            url: this._buildSearchUrl(CSE_LIB, CSE_TOKEN, expArr, query),
-            method: 'GET',
-            runInIsolate: true,
-          });
+                const CSE_TOKEN =
+                    tokens.cse_token_for_google_search?.trim();
 
-          const body = decodeBase64UTF8(result?.data || '');
-          if (!body) return [];
+                const expArr =
+                    Array.isArray(tokens.exp_for_google_search)
+                        ? tokens.exp_for_google_search.map(String)
+                        : [];
 
-          const parsed = this._parseJsonp(body);
-          const items = Array.isArray(parsed?.results) ? parsed.results : [];
-          const source = siteData.key || 'googlesearch';
+                if (!CSE_LIB || !CSE_TOKEN) return [];
 
-          return items.map(it => {
-            const title = (it?.titleNoFormatting || it?.title || '').replace(/\s+/g, ' ').trim();
-            const link = it?.unescapedUrl || it?.url || it?.clicktrackUrl || '';
-            if (!title || !link) return null;
-            return {
-              title,
-              author: '',
-              image: this._extractImage(it),
-              link,
-              bookIdMD5: this._extractMD5(link),
-              publisher: '',
-              info: (it?.contentNoFormatting || it?.content || '').replace(/\s+/g, ' ').trim(),
-              source,
-            };
-          }).filter(Boolean);
-        } catch {
-          return [];
+                const primaryBookTypes = [
+                    'pdf',
+                    'epub',
+                    'djvu'
+                ];
+
+                // Search all file types in parallel.
+                const searchPromises = primaryBookTypes.map(async (fileType) => {
+                    try {
+                        const searchQuery =
+                            `${query.trim()} filetype:${fileType}`;
+
+                        const url = this._buildSearchUrl(
+                            CSE_LIB,
+                            CSE_TOKEN,
+                            expArr,
+                            searchQuery
+                        );
+
+                        const result =
+                            await window.flutter_inappwebview.callHandler(
+                                'curlRequest',
+                                {
+                                    url,
+                                    method: 'GET',
+                                    runInIsolate: true,
+                                }
+                            );
+
+                        const body = decodeBase64UTF8(result?.data || '');
+
+                        if (!body) return [];
+
+                        const parsed = this._parseJsonp(body);
+
+                        const items = Array.isArray(parsed?.results)
+                            ? parsed.results
+                            : [];
+
+                        return items
+                            .map(it => {
+                                const title = (
+                                    it?.titleNoFormatting ||
+                                    it?.title ||
+                                    ''
+                                )
+                                    .replace(/\s+/g, ' ')
+                                    .trim();
+
+                                const link =
+                                    it?.unescapedUrl ||
+                                    it?.url ||
+                                    it?.clicktrackUrl ||
+                                    '';
+
+                                if (!title || !link) {
+                                    return null;
+                                }
+
+                                return {
+                                    title,
+                                    author: '',
+                                    image: this._extractImage(it),
+                                    link,
+                                    bookIdMD5: this._extractMD5(link),
+                                    publisher: '',
+                                    info: (
+                                        it?.contentNoFormatting ||
+                                        it?.content ||
+                                        ''
+                                    )
+                                        .replace(/\s+/g, ' ')
+                                        .trim(),
+                                    source,
+                                };
+                            })
+                            .filter(Boolean);
+                    } catch {
+                        return [];
+                    }
+                });
+
+                // Merge results from PDF + EPUB + DJVU + DOC + DOCX.
+                const results = (await Promise.all(searchPromises))
+                    .flat();
+
+                // Remove duplicate results.
+                const seen = new Set();
+
+                return results.filter(item => {
+                    const key =
+                        item.bookIdMD5 ||
+                        item.link;
+
+                    if (!key || seen.has(key)) {
+                        return false;
+                    }
+
+                    seen.add(key);
+                    return true;
+                });
+
+            } catch {
+                return [];
+            }
         }
-      }
     }
 
     class CseGoogle {
