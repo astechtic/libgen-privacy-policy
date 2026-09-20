@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!-- parser-version: 1 -->
 <html>
 
 <head>
@@ -428,6 +429,10 @@
 
 
     class Zlibrary {
+        // Supports both Z-Library layouts:
+        //  - the "card" layout (z-library.sk / 1lib mirrors): div.book-item > z-bookcard
+        //  - the legacy "table" layout (z-lib.id): div.resItemBox.resItemBoxBooks > table.resItemTable
+        // and the detail page of either.
         async searchBooks(query, siteDataArg) {
             if (!query || !siteDataArg) {
                 throw new Error('Invalid input: query and siteDataArg are required');
@@ -472,53 +477,83 @@
                 }
             };
             const attr = (el, name) => (el?.getAttribute?.(name) ?? '').trim();
+            const idFromHref = href => {
+                try {
+                    const parts = new URL(href).pathname.split('/').filter(Boolean);
+                    const idx = parts.indexOf('book');
+                    return (idx >= 0 && parts[idx + 1]) ? parts[idx + 1] : (parts.pop() || '');
+                } catch {
+                    return '';
+                }
+            };
+            const joinText = els => clean([...els].map(e => e.textContent || '').filter(Boolean).join(', '));
+            const prop = (root, name) =>
+                clean(root.querySelector(`.bookProperty.property_${name} .property_value`)?.textContent);
 
-            const items = Array.from(document.querySelectorAll('div.book-item.resItemBoxBooks'));
-            const books = items.map(item => {
+            // --- card layout (z-bookcard) ---
+            const cardBook = item => {
                 const card = item.querySelector('z-bookcard');
                 if (!card) return null;
-
                 const href = abs(attr(card, 'href'));
                 const imgEl = card.querySelector('img');
                 const image = attr(imgEl, 'data-src') || attr(imgEl, 'src') || '';
                 const title = clean(card.querySelector('div[slot="title"]')?.textContent);
                 const author = clean(card.querySelector('div[slot="author"]')?.textContent);
                 if (!href || !title) return null;
-
-                const idAttr = attr(card, 'id');
-                let bookId = idAttr;
-                if (!bookId) {
-                    try {
-                        const u = new URL(href);
-                        const parts = u.pathname.split('/').filter(Boolean);
-                        bookId = parts[1] || parts.pop() || '';
-                    } catch {
-                        bookId = '';
-                    }
+                const bookId = attr(card, 'id') || idFromHref(href);
+                const parts = [];
+                for (const [k, label] of [['year', 'year'], ['language', 'language'], ['extension', 'type'], ['filesize', 'size'], ['rating', 'rating']]) {
+                    const v = attr(card, k);
+                    if (v) parts.push(`${label}: ${v}`);
                 }
-
-                // --- info as TEXT ---
-                const keys = ['publisher', 'language', 'year', 'extension', 'filesize', 'rating', 'quality'];
-                const info = keys
-                    .map(k => {
-                        const v = attr(card, k);
-                        return v ? `${k}="${v}"` : '';
-                    })
-                    .filter(Boolean)
-                    .join(' ');
-
                 return {
-                    title,
-                    author,
-                    image,
-                    link: href,
-                    bookId,
-                    info, // << string, per your requirement
+                    title, author, image, link: href, bookId, bookIdMD5: bookId,
+                    publisher: attr(card, 'publisher'),
+                    info: parts.join(' · '),
                     source: 'zlibrary'
                 };
-            }).filter(Boolean);
+            };
 
-            return books;
+            // --- legacy table layout (z-lib.id) ---
+            const tableBook = item => {
+                const linkEl = item.querySelector('h3[itemprop="name"] a[href], h3 a[href*="/book/"], a[href*="/book/"]');
+                if (!linkEl) return null;
+                const href = abs(attr(linkEl, 'href'));
+                const title = clean(linkEl.textContent) || clean(item.querySelector('h3')?.textContent);
+                if (!href || !title) return null;
+                const imgEl = item.querySelector('img.cover, td.itemCover img, img');
+                const image = abs(attr(imgEl, 'data-src') || attr(imgEl, 'src') || '');
+                const author = joinText(item.querySelectorAll('[itemprop="author"], div.authors a'));
+                const publisher = joinText(item.querySelectorAll('[itemprop="publisher"]'));
+                const bookId = attr(item, 'data-book_id') || idFromHref(href);
+                const parts = [];
+                const year = prop(item, 'year');
+                const language = prop(item, 'language');
+                const file = prop(item, '_file') || prop(item, 'file') || prop(item, 'extension');
+                const size = prop(item, 'size') || prop(item, 'filesize');
+                const rating = clean(item.querySelector('.book-rating-interest-score')?.textContent);
+                const quality = clean(item.querySelector('.book-rating-quality-score')?.textContent);
+                if (year) parts.push(`year: ${year}`);
+                if (language) parts.push(`language: ${language}`);
+                if (file) parts.push(`type: ${file}`);
+                if (size) parts.push(`size: ${size}`);
+                if (rating) parts.push(`rating: ${rating}${quality ? '/' + quality : ''}`);
+                return {
+                    title, author, image, link: href, bookId, bookIdMD5: bookId, publisher,
+                    info: parts.join(' · '),
+                    source: 'zlibrary'
+                };
+            };
+
+            let items = Array.from(document.querySelectorAll('div.book-item.resItemBoxBooks'));
+            let books = items.map(cardBook).filter(Boolean);
+            if (!books.length) {
+                items = Array.from(document.querySelectorAll('.resItemBoxBooks, .resItemBox'));
+                books = items.map(tableBook).filter(Boolean);
+            }
+            // de-dupe by link (nested .resItemBox selectors could match twice)
+            const seen = new Set();
+            return books.filter(b => !seen.has(b.link) && seen.add(b.link));
         }
 
         getBookInfo(resData, url, baseUrl) {
@@ -537,43 +572,73 @@
             const attr = (el, name) => (el?.getAttribute?.(name) ?? '').trim();
             const abs = (href) => {
                 try {
-                    return new URL(href, baseUrl).href;
+                    return new URL(href, baseUrl || url).href;
                 } catch {
                     return href || '';
                 }
             };
+            const joinText = els => clean([...els].map(e => e.textContent || '').filter(Boolean).join(', '));
+            const prop = name =>
+                clean(document.querySelector(`.bookProperty.property_${name} .property_value`)?.textContent);
 
             // Main container
             const main = document.querySelector('div.row.cardBooks') || document;
 
-            // Title
-            const title = clean(main.querySelector('h1.book-title')?.textContent);
+            // Title: card layout uses h1.book-title, legacy layout h1[itemprop=name]
+            const title = clean(
+                (main.querySelector('h1.book-title') ||
+                    main.querySelector('h1[itemprop="name"]') ||
+                    main.querySelector('h1'))?.textContent);
 
             // Author(s)
-            let author = '';
-            const authorLinks = main.querySelectorAll('i a.color1[title*="author"], a.color1[title*="author"]');
-            if (authorLinks.length) {
-                author = clean([...authorLinks].map(a => a.textContent || '').join(', '));
-            } else {
-                // fallback
-                author = clean(main.querySelector('i a.color1')?.textContent);
+            let author = joinText(main.querySelectorAll('a[itemprop="author"]'));
+            if (!author) {
+                const authorLinks = main.querySelectorAll('i a.color1[title*="author"], a.color1[title*="author"]');
+                author = authorLinks.length
+                    ? joinText(authorLinks)
+                    : clean(main.querySelector('i a.color1')?.textContent);
             }
 
             // Description
             const description = clean(document.querySelector('#bookDescriptionBox')?.textContent);
 
-            // Publishor (publisher box)
-            let publishor = clean(main.querySelector('.bookProperty.property_publisher')?.textContent);
-            // strip possible label like "Publisher:"
-            publishor = publishor.replace(/^\s*Publisher:\s*/i, '');
+            // Publisher
+            let publisher = prop('publisher') ||
+                clean(main.querySelector('.bookProperty.property_publisher')?.textContent);
+            publisher = publisher.replace(/^\s*Publisher:\s*/i, '');
 
             // Thumbnail (prefer data-src)
-            const imgEl = main.querySelector('img[data-src]') || main.querySelector('img[src]');
-            const thumbnail = attr(imgEl, 'data-src') || attr(imgEl, 'src');
+            const imgEl = main.querySelector('.details-book-cover img, img[data-src], img[src]');
+            const thumbnail = abs(attr(imgEl, 'data-src') || attr(imgEl, 'src') ||
+                attr(main.querySelector('a[itemprop="image"]'), 'href'));
 
-            const mirrors = [url];
+            // Info line from the property boxes
+            const parts = [];
+            const year = prop('year');
+            const language = prop('language');
+            const pages = prop('pages');
+            const file = prop('_file') || prop('file') || prop('extension');
+            const size = prop('size') || prop('filesize');
+            if (year) parts.push(`year: ${year}`);
+            if (language) parts.push(`language: ${language}`);
+            if (pages) parts.push(`pages: ${pages}`);
+            if (file) parts.push(`type: ${file}`);
+            if (size) parts.push(`size: ${size}`);
+            const info = parts.join(' · ');
 
-            // Book ID from URL: /book/2166985/...
+            // Mirrors: real download links when the mirror exposes them
+            // (z-lib.id's dlButton just points at /login), else the book page
+            // itself so the user can log in / download from the site.
+            const mirrors = [];
+            for (const a of document.querySelectorAll('a.dlButton[href], a[href*="/dl/"], a[href*="/download"]')) {
+                const href = attr(a, 'href');
+                if (!href || href.startsWith('#') || /\/login(\b|$)/.test(href)) continue;
+                const full = abs(href);
+                if (!mirrors.includes(full)) mirrors.push(full);
+            }
+            if (!mirrors.length) mirrors.push(url);
+
+            // Book ID from URL: /book/2166985/... or /book/<slug>
             let bookIdMD5 = '';
             try {
                 const u = new URL(url, baseUrl);
@@ -582,12 +647,13 @@
                 if (idx >= 0 && parts[idx + 1]) bookIdMD5 = parts[idx + 1];
                 else bookIdMD5 = parts.pop() || '';
             } catch {}
+            bookIdMD5 = attr(main, 'data-book_id') || bookIdMD5;
 
             return {
                 title,
                 author,
-                publishor, // spelled as requested
-                info: "", // not specified on detail page; keeping field for consistency
+                publisher,
+                info,
                 thumbnail,
                 description,
                 link: url,
@@ -596,6 +662,150 @@
             };
         }
 
+    }
+
+
+
+    class RaveBookSearch {
+        // ravebooksearch.com is a client-side app: its "direct results" come
+        // from a Cloudflare Worker (WORKER_URL in /js/common.js) at
+        // /search/all?q=<query>&mode=<ebooks|audiobooks>, which returns JSON
+        // aggregated from Gutenberg, Internet Archive, Mobilism, RoyalLib, ….
+        // Config keeps the site's own URL shape (/?q={SEARCH_QUERY}&mode=ebooks);
+        // this class resolves the worker and translates the call.
+        static get fallbackWorkerUrl() {
+            return 'https://ravebooksearch.cloudflare-s3cvv.workers.dev';
+        }
+
+        async resolveWorkerUrl(primarySource) {
+            if (window.__raveWorkerUrl) return window.__raveWorkerUrl;
+            let worker = RaveBookSearch.fallbackWorkerUrl;
+            try {
+                const res = await window.flutter_inappwebview.callHandler('curlRequest', {
+                    url: new URL('/js/common.js', primarySource).href,
+                    method: 'GET',
+                    runInIsolate: true
+                });
+                if (res && res.statusCode === 200 && res.data) {
+                    const m = decodeBase64UTF8(res.data).match(/WORKER_URL\s*=\s*['"]([^'"]+)['"]/);
+                    if (m && /^https?:\/\//.test(m[1])) worker = m[1].replace(/\/+$/, '');
+                }
+            } catch (e) {
+                console.warn('RaveBookSearch: could not read WORKER_URL, using fallback', e);
+            }
+            window.__raveWorkerUrl = worker;
+            return worker;
+        }
+
+        async searchBooks(query, siteDataArg) {
+            if (!query || !siteDataArg) {
+                throw new Error('Invalid input: query and siteDataArg are required');
+            }
+            const siteData = typeof siteDataArg === 'string' ? JSON.parse(siteDataArg) : siteDataArg;
+            const { primarySource, searchPath } = siteData || {};
+            if (!primarySource || !searchPath) {
+                throw new Error('Invalid site data: missing primarySource or searchPath');
+            }
+
+            // Take q / mode from the configured site URL so config stays in charge.
+            const siteUrl = new URL(searchPath.replace('{SEARCH_QUERY}', encodeURIComponent(query)), primarySource);
+            const q = siteUrl.searchParams.get('q') || query;
+            const mode = siteUrl.searchParams.get('mode') || 'ebooks';
+
+            const worker = await this.resolveWorkerUrl(primarySource);
+            const url = `${worker}/search/all?q=${encodeURIComponent(q)}&mode=${encodeURIComponent(mode)}`;
+            // The worker fans out to a dozen sites and can take 5-10 s; ask the
+            // bridge for more than Dio's 10 s default (capped to the app's
+            // per-source budget on the Dart side). The isolate path has no
+            // retry interceptor, so retry a transient failure once ourselves.
+            let result = null;
+            for (let attempt = 0; attempt < 2; attempt++) {
+                result = await window.flutter_inappwebview.callHandler('curlRequest', {
+                    url,
+                    method: 'GET',
+                    runInIsolate: true,
+                    timeoutMs: 14000
+                });
+                if (result && result.statusCode === 200 && result.data) break;
+                console.warn(`Request failed with status code: ${result?.statusCode} (attempt ${attempt + 1})`);
+            }
+            if (!result || result.statusCode !== 200 || !result.data) {
+                return [];
+            }
+
+            let data;
+            try {
+                data = JSON.parse(decodeBase64UTF8(result.data));
+            } catch (e) {
+                throw new Error(`RaveBookSearch: JSON parse failed: ${e?.message || e}`);
+            }
+            const results = Array.isArray(data) ? data : (data?.results || []);
+
+            const clean = s => String(s ?? '').replace(/\s+/g, ' ').trim();
+            // LibGen-style titles can carry ISBN blobs: "Dune; 9780441013593 b l 123"
+            const cleanTitle = t => clean(t)
+                .replace(/;[^;]{0,4}\d{10,13}[^;]*/g, '')
+                .replace(/\b\d{13}\b/g, '')
+                .replace(/\b\d{10}\b/g, '')
+                .replace(/\s{2,}/g, ' ').trim();
+            const humanSize = bytes => {
+                const n = Number(bytes);
+                if (!n || n <= 0) return '';
+                if (n >= 1024 * 1024 * 1024) return `${(n / 1024 / 1024 / 1024).toFixed(1)}GB`;
+                if (n >= 1024 * 1024) return `${(n / 1024 / 1024).toFixed(1)}MB`;
+                return `${Math.round(n / 1024)}KB`;
+            };
+
+            const seen = new Set();
+            const books = [];
+            for (const r of results) {
+                const title = cleanTitle(r.title);
+                // Prefer a ready direct file link, else the download/topic page.
+                const link = clean((r.directReady && r.directUrl) || r.downloadUrl || r.directUrl || r.topicUrl);
+                if (!title || !link || seen.has(link)) continue;
+                seen.add(link);
+                const parts = [];
+                if (r.format) parts.push(`type: ${clean(r.format).toUpperCase()}`);
+                const size = humanSize(r.filesize);
+                if (size) parts.push(`size: ${size}`);
+                if (r.year) parts.push(`year: ${clean(r.year)}`);
+                if (r.language) parts.push(`language: ${clean(r.language)}`);
+                if (r.source) parts.push(`via: ${clean(r.source)}`);
+                books.push({
+                    title,
+                    author: clean(r.author),
+                    image: clean(r.coverUrl),
+                    link,
+                    bookIdMD5: clean(r.identifier) || link,
+                    publisher: clean(r.source),
+                    info: parts.join(' · '),
+                    source: 'ravebooksearch'
+                });
+            }
+            return books;
+        }
+
+        // Results already point at the hosting site's download/detail page and
+        // the source is configured with isDdl: true, so the app opens `link`
+        // directly. Kept for API parity with the other parsers.
+        getBookInfo(resData, url, baseUrl) {
+            let title = '';
+            try {
+                const document = new DOMParser().parseFromString(decodeBase64UTF8(resData), 'text/html');
+                title = String(document.querySelector('title')?.textContent ?? '').replace(/\s+/g, ' ').trim();
+            } catch {}
+            return {
+                title,
+                author: '',
+                publisher: '',
+                info: '',
+                thumbnail: '',
+                description: '',
+                link: url,
+                bookIdMD5: url,
+                mirrors: [url]
+            };
+        }
     }
 
 
