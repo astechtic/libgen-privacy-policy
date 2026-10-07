@@ -1831,6 +1831,156 @@
     }
 
 
+    class Gutenberg {
+        // gutenberg.org search: /ebooks/search/?query=<q> → ul.results > li.booklink
+        // detail page: /ebooks/<id> → h1#book_title, table.bibrec, download links
+        async searchBooks(query, siteDataArg) {
+            try {
+                if (!query || !siteDataArg) return [];
+
+                const siteData = typeof siteDataArg === "string" ? JSON.parse(siteDataArg) : siteDataArg;
+                const { primarySource, searchPath } = siteData || {};
+                if (!primarySource || !searchPath) return [];
+
+                const url = new URL(searchPath.replace("{SEARCH_QUERY}", encodeURIComponent(query)), primarySource).toString();
+
+                const result = await window.flutter_inappwebview.callHandler("curlRequest", {
+                    url,
+                    method: "GET",
+                    runInIsolate: true,
+                });
+                if (!result || result.statusCode !== 200 || !result.data) return [];
+
+                const doc = new DOMParser().parseFromString(decodeBase64UTF8(result.data), "text/html");
+
+                const clean = (s) => (s ?? "").replace(/\s+/g, " ").trim();
+                const abs = (href) => {
+                    try {
+                        return href ? new URL(href, primarySource).toString() : "";
+                    } catch {
+                        return "";
+                    }
+                };
+
+                const seen = new Set();
+                const books = [];
+                for (const li of doc.querySelectorAll("li.booklink")) {
+                    const linkEl = li.querySelector("a.link[href]");
+                    const link = abs(linkEl?.getAttribute("href"));
+                    const title = clean(li.querySelector("span.title")?.textContent);
+                    if (!title || !link || seen.has(link)) continue;
+                    seen.add(link);
+
+                    const imgEl = li.querySelector("img.cover-thumb, img");
+                    const bookId = (link.match(/\/ebooks\/(\d+)/) || [])[1] || "";
+
+                    books.push({
+                        title,
+                        author: clean(li.querySelector("span.subtitle")?.textContent),
+                        image: abs(imgEl?.getAttribute("src")),
+                        link,
+                        bookIdMD5: bookId,
+                        publisher: "Project Gutenberg",
+                        info: clean(li.querySelector("span.extra")?.textContent),
+                        source: "gutenberg",
+                    });
+                }
+                return books;
+            } catch (error) {
+                console.error("Error in Gutenberg.searchBooks:", error);
+                return [];
+            }
+        }
+
+        getBookInfo(resData, url, baseUrl) {
+            const link = typeof url === "string" ? url : String(url);
+            const bookIdMD5 = (link.match(/\/ebooks\/(\d+)/) || [])[1] || "";
+            try {
+                const doc = new DOMParser().parseFromString(decodeBase64UTF8(resData), "text/html");
+
+                const clean = (s) => (s ?? "").replace(/\s+/g, " ").trim();
+                const abs = (href) => {
+                    try {
+                        return href ? new URL(href, baseUrl || link).toString() : "";
+                    } catch {
+                        return href || "";
+                    }
+                };
+
+                // Rows of the "About this eBook" table, keyed by header text
+                const bib = {};
+                doc.querySelectorAll("table.bibrec tr").forEach((tr) => {
+                    const key = clean(tr.querySelector("th")?.textContent);
+                    const val = clean(tr.querySelector("td")?.textContent);
+                    if (key && val && !bib[key]) bib[key] = val;
+                });
+
+                const title = clean(doc.querySelector('td[itemprop="headline"]')?.childNodes[0]?.textContent) ||
+                    clean(doc.querySelector("h1#book_title, h1")?.textContent);
+
+                const author = Array.from(doc.querySelectorAll('table.bibrec a[rel="marcrel:aut"], table.bibrec a[itemprop="creator"]'))
+                    .map((a) => clean(a.textContent))
+                    .filter((v, i, arr) => v && arr.indexOf(v) === i)
+                    .join(", ");
+
+                const thumbnail = abs(
+                    doc.querySelector("img.cover-art")?.getAttribute("src") ||
+                    doc.querySelector('meta[property="og:image"]')?.getAttribute("content")
+                );
+
+                const description = clean(doc.querySelector(".summary-text-container")?.textContent)
+                    .replace(/\.\.\.\s*Read more\s*Show less\s*$/i, "")
+                    .trim();
+
+                const parts = [];
+                if (bib["Language"]) parts.push(`language: ${bib["Language"]}`);
+                if (bib["Release Date"]) parts.push(`released: ${bib["Release Date"]}`);
+                if (bib["Subject"]) parts.push(`subject: ${bib["Subject"]}`);
+                if (bib["Downloads"]) parts.push(bib["Downloads"]);
+                const info = parts.join(" · ");
+
+                // Download links: featured EPUB3 first, then the other formats.
+                // Skip plain-text/HTML/zip bundles that the reader can't open.
+                const mirrors = [];
+                doc.querySelectorAll("a.featured-format-link[href], a.other-format-link[href], table.files a.link[href]").forEach((a) => {
+                    const href = abs(a.getAttribute("href"));
+                    if (!href || mirrors.includes(href)) return;
+                    if (/\.(txt|zip|tex)(\.utf-8)?$|\.html\.images$|\.txt\.utf-8$|-images\.html$/i.test(href)) return;
+                    mirrors.push(href);
+                });
+                if (!mirrors.length && bookIdMD5) {
+                    mirrors.push(abs(`/ebooks/${bookIdMD5}.epub3.images`));
+                }
+
+                return {
+                    title,
+                    author,
+                    publisher: "Project Gutenberg",
+                    info,
+                    thumbnail,
+                    description,
+                    link,
+                    bookIdMD5,
+                    mirrors,
+                };
+            } catch (error) {
+                console.error("Error in Gutenberg.getBookInfo:", error);
+                return {
+                    title: "",
+                    author: "",
+                    publisher: "Project Gutenberg",
+                    info: "",
+                    thumbnail: "",
+                    description: "",
+                    link,
+                    bookIdMD5,
+                    mirrors: bookIdMD5 ? [`https://www.gutenberg.org/ebooks/${bookIdMD5}.epub3.images`] : [link],
+                };
+            }
+        }
+    }
+
+
     class GoogleSearch {
 
       // --- Private helpers ---
