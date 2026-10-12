@@ -1,0 +1,132 @@
+{
+  "schema_version": 2,
+  "app": {
+    "min_supported_version": "0.2.0"
+  },
+  "rollout": {
+    "ads_rules_v3": 20
+  },
+  "ads": {
+    "unlock_sheet_enabled": true,
+    "links_unlock_mode": "per_book",
+    "interstitial": {
+      "enabled": false,
+      "cooldown_minutes": 4,
+      "max_per_day": 4
+    },
+    "legacy_placements": {
+      "book_details": false,
+      "book_details_on_open": false,
+      "library_on_open": false,
+      "reader_on_open": false
+    },
+    "networks": {
+      "ironsource": {
+        "enabled": true,
+        "rewarded_unit": "y6w09u1jfyyuowwt",
+        "interstitial_unit": "4foidxgqrh7g44u0"
+      },
+      "unity": {
+        "rewarded_placement": "Rewarded_ads",
+        "interstitial_placement": "Interstitial_ads"
+      }
+    },
+    "slots": []
+  },
+  "sponsor": {
+    "enabled": false,
+    "name": "Searchly",
+    "tagline": "Search anything, faster",
+    "description": "A fast, clean search app with no clutter. Made by the same team.",
+    "image": "https://storage.googleapis.com/univest-applications.appspot.com/pn_images/1756395739860_searchly_ad.png",
+    "free": true,
+    "presentation": "sheet",
+    "tap_action": "openUrl",
+    "tap_url": "https://1337x-app.weebly.com/dl.html?q=P2FjdGlvbj1yb3V0ZSZ1cmw9aG9tZT9pbmRleD0w"
+  },
+  "search": {
+    "sources": [
+      {
+        "key": "gutenberg",
+        "title": "Project Gutenberg",
+        "enabled": true,
+        "parser": "Gutenberg",
+        "base_url": "https://www.gutenberg.org",
+        "search_path": "/ebooks/search/?query={SEARCH_QUERY}",
+        "direct_download": false,
+        "mirrors": [
+          "https://www.gutenberg.org"
+        ]
+      },
+      {
+        "key": "googlesearch",
+        "title": "Google Search",
+        "enabled": false,
+        "parser": "GoogleSearch",
+        "base_url": "https://cse.google.com",
+        "search_path": "/",
+        "direct_download": true,
+        "mirrors": [
+          "https://cse.google.com"
+        ]
+      }
+    ],
+    "try_searches": [
+      "pride and prejudice",
+      "sherlock holmes",
+      "atomic habits",
+      "clean code",
+      "organic chemistry"
+    ],
+    "onboarding_topics": [
+      {
+        "label": "Classics",
+        "ol_subject": "classics"
+      },
+      {
+        "label": "Fiction",
+        "ol_subject": "fiction"
+      },
+      {
+        "label": "Self-help",
+        "ol_subject": "self-help"
+      },
+      {
+        "label": "Programming",
+        "ol_subject": "programming"
+      },
+      {
+        "label": "Science",
+        "ol_subject": "science"
+      },
+      {
+        "label": "Business",
+        "ol_subject": "business"
+      },
+      {
+        "label": "Romance",
+        "ol_subject": "romance"
+      },
+      {
+        "label": "Thriller",
+        "ol_subject": "thriller"
+      },
+      {
+        "label": "History",
+        "ol_subject": "history"
+      },
+      {
+        "label": "Exam prep",
+        "ol_subject": "examinations"
+      },
+      {
+        "label": "Medicine",
+        "ol_subject": "medicine"
+      },
+      {
+        "label": "Engineering",
+        "ol_subject": "engineering"
+      }
+    ]
+  }
+}

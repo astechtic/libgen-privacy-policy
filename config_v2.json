@@ -1,0 +1,226 @@
+{
+  "schema_version": 2,
+  "app": {
+    "min_supported_version": "0.2.0"
+  },
+  "rollout": {
+    "ads_rules_v3": 20
+  },
+  "ads": {
+    "unlock_sheet_enabled": true,
+    "links_unlock_mode": "per_book",
+    "interstitial": {
+      "enabled": false,
+      "cooldown_minutes": 4,
+      "max_per_day": 4
+    },
+    "legacy_placements": {
+      "book_details": true,
+      "book_details_on_open": false,
+      "library_on_open": false,
+      "reader_on_open": false
+    },
+    "networks": {
+      "ironsource": {
+        "enabled": true,
+        "rewarded_unit": "o314b4cfsqe59rtv",
+        "interstitial_unit": "hihejvt6epmnrwg3"
+      },
+      "unity": {
+        "rewarded_placement": "Rewarded_ads",
+        "interstitial_placement": "Interstitial_ads"
+      }
+    },
+    "slots": []
+  },
+  "sponsor": {
+    "enabled": true,
+    "name": "Searchly",
+    "tagline": "Search anything, faster",
+    "description": "A fast, clean search app with no clutter. Made by the same team.",
+    "image": "https://storage.googleapis.com/univest-applications.appspot.com/pn_images/1756395739860_searchly_ad.png",
+    "free": true,
+    "presentation": "sheet",
+    "tap_action": "openUrl",
+    "tap_url": "https://1337x-app.weebly.com/dl.html?q=P2FjdGlvbj1yb3V0ZSZ1cmw9aG9tZT9pbmRleD0w"
+  },
+  "search": {
+    "sources": [
+      {
+        "key": "annasArchive",
+        "title": "AnnasArchive",
+        "enabled": true,
+        "parser": "AnnasArchive",
+        "base_url": "https://annas-archive.gl",
+        "search_path": "/search?index=&page=1&sort=&display=table&q={SEARCH_QUERY}",
+        "direct_download": false,
+        "mirrors": [
+          "https://annas-archive.gl",
+          "https://annas-archive.pk",
+          "https://annas-archive.gd"
+        ]
+      },
+      {
+        "key": "zlibrary",
+        "title": "Zlibrary",
+        "enabled": true,
+        "parser": "Zlibrary",
+        "base_url": "https://z-lib.id",
+        "search_path": "/s?q={SEARCH_QUERY}",
+        "direct_download": false,
+        "mirrors": [
+          "https://z-lib.id",
+          "https://1lib.sk",
+          "https://z-lib.gd",
+          "https://articles.sk"
+        ]
+      },
+      {
+        "key": "googlesearch",
+        "title": "Google Search",
+        "enabled": true,
+        "parser": "GoogleSearch",
+        "base_url": "https://cse.google.com",
+        "search_path": "/",
+        "direct_download": true,
+        "mirrors": [
+          "https://cse.google.com"
+        ]
+      },
+      {
+        "key": "booksee",
+        "title": "BookSee",
+        "enabled": true,
+        "parser": "BookSee",
+        "base_url": "https://en.booksee.org",
+        "search_path": "/s/?q={SEARCH_QUERY}&t=0",
+        "direct_download": false,
+        "mirrors": [
+          "https://en.booksee.org"
+        ]
+      },
+      {
+        "key": "ebookHunter",
+        "title": "EbookHunter",
+        "enabled": true,
+        "parser": "EbookHunter",
+        "base_url": "https://ebook-hunter.org",
+        "search_path": "/search/?keyword={SEARCH_QUERY}&x=0&y=0",
+        "direct_download": false,
+        "mirrors": [
+          "https://ebook-hunter.org"
+        ]
+      },
+      {
+        "key": "pdfRoom",
+        "title": "PdfRoom",
+        "enabled": true,
+        "parser": "PdfRoom",
+        "base_url": "https://pdfroom.com",
+        "search_path": "/search?query={SEARCH_QUERY}",
+        "direct_download": false,
+        "mirrors": [
+          "https://pdfroom.com"
+        ]
+      },
+      {
+        "key": "libgenGs",
+        "title": "LibgenGs",
+        "enabled": true,
+        "parser": "LibgenGs",
+        "base_url": "https://libgen.li",
+        "search_path": "/index.php?req={SEARCH_QUERY}&columns%5B%5D=t&columns%5B%5D=a&columns%5B%5D=s&columns%5B%5D=y&columns%5B%5D=p&columns%5B%5D=i&objects%5B%5D=f&topics%5B%5D=l&topics%5B%5D=c&topics%5B%5D=f&topics%5B%5D=a&topics%5B%5D=m&topics%5B%5D=r&topics%5B%5D=s&res=50&covers=on&showch=on&filesuns=all&curtab=f&order=year&ordermode=desc",
+        "direct_download": false,
+        "mirrors": [
+          "https://libgen.li",
+          "https://libgen.gs",
+          "https://libgen.vg",
+          "https://libgen.la",
+          "https://libgen.bz"
+        ]
+      },
+      {
+        "key": "goldenaudiobook",
+        "title": "GoldenAudioBook",
+        "enabled": true,
+        "parser": "GoldenAudioBook",
+        "base_url": "https://goldenaudiobook.net",
+        "search_path": "/?s={SEARCH_QUERY}",
+        "direct_download": true,
+        "mirrors": [
+          "https://goldenaudiobook.net"
+        ]
+      },
+      {
+        "key": "ravebooksearch",
+        "title": "Rave Book Search",
+        "enabled": true,
+        "parser": "RaveBookSearch",
+        "base_url": "https://ravebooksearch.com",
+        "search_path": "/?q={SEARCH_QUERY}&mode=ebooks",
+        "direct_download": true,
+        "mirrors": [
+          "https://ravebooksearch.com",
+          "https://ravebooksearch.cloudflare-s3cvv.workers.dev"
+        ]
+      }
+    ],
+    "try_searches": [
+      "pride and prejudice",
+      "sherlock holmes",
+      "atomic habits",
+      "clean code",
+      "organic chemistry"
+    ],
+    "onboarding_topics": [
+      {
+        "label": "Classics",
+        "ol_subject": "classics"
+      },
+      {
+        "label": "Fiction",
+        "ol_subject": "fiction"
+      },
+      {
+        "label": "Self-help",
+        "ol_subject": "self-help"
+      },
+      {
+        "label": "Programming",
+        "ol_subject": "programming"
+      },
+      {
+        "label": "Science",
+        "ol_subject": "science"
+      },
+      {
+        "label": "Business",
+        "ol_subject": "business"
+      },
+      {
+        "label": "Romance",
+        "ol_subject": "romance"
+      },
+      {
+        "label": "Thriller",
+        "ol_subject": "thriller"
+      },
+      {
+        "label": "History",
+        "ol_subject": "history"
+      },
+      {
+        "label": "Exam prep",
+        "ol_subject": "examinations"
+      },
+      {
+        "label": "Medicine",
+        "ol_subject": "medicine"
+      },
+      {
+        "label": "Engineering",
+        "ol_subject": "engineering"
+      }
+    ]
+  }
+}
