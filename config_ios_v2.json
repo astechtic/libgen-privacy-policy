@@ -56,7 +56,8 @@
         "direct_download": false,
         "mirrors": [
           "https://www.gutenberg.org"
-        ]
+        ],
+        "media": "book"
       },
       {
         "key": "googlesearch",
@@ -68,7 +69,8 @@
         "direct_download": true,
         "mirrors": [
           "https://cse.google.com"
-        ]
+        ],
+        "media": "book"
       }
     ],
     "try_searches": [
@@ -128,5 +130,9 @@
         "ol_subject": "engineering"
       }
     ]
+  },
+  "magazines": {
+    "home_enabled": false,
+    "image_proxy": "https://i0.wp.com/{url}?w=360"
   }
 }

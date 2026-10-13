@@ -58,7 +58,8 @@
           "https://annas-archive.gl",
           "https://annas-archive.pk",
           "https://annas-archive.gd"
-        ]
+        ],
+        "media": "book"
       },
       {
         "key": "zlibrary",
@@ -73,7 +74,8 @@
           "https://1lib.sk",
           "https://z-lib.gd",
           "https://articles.sk"
-        ]
+        ],
+        "media": "book"
       },
       {
         "key": "googlesearch",
@@ -85,7 +87,8 @@
         "direct_download": true,
         "mirrors": [
           "https://cse.google.com"
-        ]
+        ],
+        "media": "book"
       },
       {
         "key": "booksee",
@@ -97,7 +100,8 @@
         "direct_download": false,
         "mirrors": [
           "https://en.booksee.org"
-        ]
+        ],
+        "media": "book"
       },
       {
         "key": "ebookHunter",
@@ -109,7 +113,8 @@
         "direct_download": false,
         "mirrors": [
           "https://ebook-hunter.org"
-        ]
+        ],
+        "media": "book"
       },
       {
         "key": "pdfRoom",
@@ -121,7 +126,8 @@
         "direct_download": false,
         "mirrors": [
           "https://pdfroom.com"
-        ]
+        ],
+        "media": "book"
       },
       {
         "key": "libgenGs",
@@ -137,7 +143,8 @@
           "https://libgen.vg",
           "https://libgen.la",
           "https://libgen.bz"
-        ]
+        ],
+        "media": "book"
       },
       {
         "key": "goldenaudiobook",
@@ -149,7 +156,8 @@
         "direct_download": true,
         "mirrors": [
           "https://goldenaudiobook.net"
-        ]
+        ],
+        "media": "audio"
       },
       {
         "key": "ravebooksearch",
@@ -162,6 +170,20 @@
         "mirrors": [
           "https://ravebooksearch.com",
           "https://ravebooksearch.cloudflare-s3cvv.workers.dev"
+        ],
+        "media": "book"
+      },
+      {
+        "key": "magazinelib",
+        "title": "MagazineLib",
+        "enabled": true,
+        "parser": "native",
+        "base_url": "https://magazinelib.com",
+        "search_path": "/wp-json/wp/v2/posts?search={SEARCH_QUERY}&per_page=20&_embed",
+        "direct_download": false,
+        "media": "magazine",
+        "mirrors": [
+          "https://magazinelib.com"
         ]
       }
     ],
@@ -222,5 +244,9 @@
         "ol_subject": "engineering"
       }
     ]
+  },
+  "magazines": {
+    "home_enabled": true,
+    "image_proxy": "https://i0.wp.com/{url}?w=360"
   }
 }
