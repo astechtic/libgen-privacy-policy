@@ -9,6 +9,28 @@
   "ads": {
     "unlock_sheet_enabled": true,
     "links_unlock_mode": "per_book",
+    "gates": {
+      "cooldown_minutes": 3,
+      "search": {
+        "enabled": false,
+        "every": 3
+      },
+      "book_details": {
+        "enabled": false,
+        "every": 2
+      },
+      "links": {
+        "enabled": false,
+        "unlock_minutes": 30
+      },
+      "reader": {
+        "enabled": false,
+        "every": 1
+      },
+      "library": {
+        "enabled": false
+      }
+    },
     "interstitial": {
       "enabled": false,
       "cooldown_minutes": 4,
