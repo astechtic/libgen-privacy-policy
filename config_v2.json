@@ -220,6 +220,20 @@
         "tip": "Matches post titles: the book's title or the author's name works best."
       },
       {
+        "key": "audiobookbay",
+        "title": "AudioBookBay",
+        "enabled": true,
+        "parser": "AudioBookBay",
+        "base_url": "https://audiobookbay.lu",
+        "search_path": "/?s={SEARCH_QUERY}",
+        "direct_download": true,
+        "mirrors": [
+          "https://audiobookbay.lu"
+        ],
+        "media": "audio",
+        "tip": "Matches titles and authors. Results show format and size; the book opens on the site in your browser."
+      },
+      {
         "key": "ravebooksearch",
         "title": "Rave Book Search",
         "enabled": true,

@@ -219,6 +219,103 @@
         }
     }
 
+    // AudioBookBay (audiobookbay.lu): WordPress listing of audiobooks.
+    // Each result is a div.post: "Title - Author" in .postTitle, language in
+    // .postInfo, cover in .postContent, and "Format / Bitrate / File Size"
+    // in the centred paragraph.
+    class AudioBookBay {
+      async searchBooks(query, siteDataArg) {
+        if (!query || !siteDataArg) {
+          throw new Error("Invalid input: query and siteDataArg are required");
+        }
+        const siteData =
+          typeof siteDataArg === "string" ? JSON.parse(siteDataArg) : siteDataArg;
+        const { primarySource, searchPath } = siteData || {};
+        if (!primarySource || !searchPath) {
+          throw new Error("Invalid site data: missing primarySource or searchPath");
+        }
+        const path = searchPath.replace("{SEARCH_QUERY}", encodeURIComponent(query));
+        const url = new URL(path, primarySource).href;
+
+        let result;
+        try {
+          result = await window.flutter_inappwebview.callHandler("curlRequest", {
+            url,
+            method: "GET",
+            runInIsolate: true,
+          });
+        } catch (e) {
+          throw new Error(`Network error calling curlRequest: ${e?.message || e}`);
+        }
+        if (!result || result.statusCode !== 200 || !result.data) {
+          console.warn(`AudioBookBay: request failed or empty: ${result?.statusCode}`);
+          return [];
+        }
+        const doc = new DOMParser().parseFromString(
+          decodeBase64UTF8(result.data),
+          "text/html"
+        );
+
+        const abs = (href) => {
+          try {
+            return href ? new URL(href, primarySource).href : "";
+          } catch {
+            return href || "";
+          }
+        };
+        const clean = (t) => (t || "").replace(/\s+/g, " ").trim();
+
+        return Array.from(doc.querySelectorAll("#content div.post"))
+          .map((post) => {
+            const a = post.querySelector(".postTitle h2 a");
+            if (!a) return null;
+            const full = clean(a.textContent);
+            const link = abs(a.getAttribute("href"));
+            if (!full || !link) return null;
+
+            // "The Hobbit - J.R.R. Tolkien": the author follows the last " - ".
+            const cut = full.lastIndexOf(" - ");
+            const title = cut > 0 ? full.slice(0, cut).trim() : full;
+            const author = cut > 0 ? full.slice(cut + 3).trim() : "";
+
+            const img = post.querySelector(".postContent img");
+            const image = abs(img?.getAttribute("src") || img?.getAttribute("data-src") || "");
+
+            const infoText = clean(post.querySelector(".postInfo")?.textContent);
+            const lang = (infoText.match(/Language:\s*([A-Z][a-z]+)/) || [])[1] || "";
+            const metaText = clean(
+              Array.from(post.querySelectorAll(".postContent p"))
+                .map((p) => p.textContent)
+                .join(" ")
+            );
+            const format = (metaText.match(/Format:\s*([A-Za-z0-9]+)/) || [])[1] || "";
+            const sizeNum = (metaText.match(/File Size:\s*([\d.,]+)/) || [])[1] || "";
+            const sizeUnit = ((metaText.match(/File Size:\s*[\d.,]+\s*([KMGT]B)/i) || [])[1] || "MB").toUpperCase();
+            const posted = (metaText.match(/Posted:\s*(\d{1,2} \w{3} \d{4})/) || [])[1] || "";
+
+            const info = [
+              format,
+              sizeNum ? `${sizeNum} ${sizeUnit}` : "",
+              lang,
+              posted ? posted.slice(-4) : "",
+            ]
+              .filter(Boolean)
+              .join(" · ");
+
+            return {
+              title,
+              author,
+              image,
+              link,
+              info,
+              bookIdMD5: link.split("/").filter(Boolean).pop() || "",
+              source: "audiobookbay",
+            };
+          })
+          .filter(Boolean);
+      }
+    }
+
     class BookSee {
       async searchBooks(query, siteDataArg) {
         try {
