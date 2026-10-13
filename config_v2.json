@@ -60,7 +60,7 @@
     "name": "Searchly",
     "tagline": "Search anything, faster",
     "description": "A fast, clean search app with no clutter. Made by the same team.",
-    "image": "https://storage.googleapis.com/univest-applications.appspot.com/pn_images/1756395739860_searchly_ad.png",
+    "image": "https://storage.googleapis.com/production-univest/pn_images/1791893047906_searchly_icon.webp",
     "free": true,
     "presentation": "sheet",
     "tap_action": "openUrl",
