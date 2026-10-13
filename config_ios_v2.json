@@ -57,7 +57,8 @@
         "mirrors": [
           "https://www.gutenberg.org"
         ],
-        "media": "book"
+        "media": "book",
+        "tip": "Free public-domain classics: title or author."
       },
       {
         "key": "googlesearch",
@@ -129,6 +130,45 @@
         "label": "Engineering",
         "ol_subject": "engineering"
       }
+    ],
+    "tips": [
+      {
+        "id": "title_author",
+        "icon": "book",
+        "title": "Title + author's last name",
+        "body": "Drop subtitles, editions and words like \"pdf\" or \"free\". Fewer words find more.",
+        "example": "pride and prejudice austen"
+      },
+      {
+        "id": "author",
+        "icon": "user",
+        "title": "All books by an author",
+        "body": "Type the name, then pick Author above the keyboard.",
+        "example": "agatha christie",
+        "mode": "author"
+      },
+      {
+        "id": "isbn",
+        "icon": "scan",
+        "title": "Exact edition: the ISBN",
+        "body": "13 digits, no dashes. Or scan the barcode.",
+        "example": "9780141439518",
+        "mode": "isbn"
+      }
+    ],
+    "noise_words": [
+      "free",
+      "pdf",
+      "epub",
+      "mobi",
+      "download",
+      "ebook",
+      "e-book",
+      "full",
+      "book",
+      "online",
+      "read",
+      "novel"
     ]
   },
   "magazines": {

@@ -59,7 +59,16 @@
           "https://annas-archive.pk",
           "https://annas-archive.gd"
         ],
-        "media": "book"
+        "media": "book",
+        "tip": "Title, author or ISBN. Pick format, language and year in Filters, not in the query.",
+        "modes": {
+          "author": {
+            "path": "/search?index=&page=1&sort=&display=table&q=&termtype_1=author&termval_1={SEARCH_QUERY}"
+          },
+          "title": {
+            "path": "/search?index=&page=1&sort=&display=table&q=&termtype_1=title&termval_1={SEARCH_QUERY}"
+          }
+        }
       },
       {
         "key": "zlibrary",
@@ -75,7 +84,8 @@
           "https://z-lib.gd",
           "https://articles.sk"
         ],
-        "media": "book"
+        "media": "book",
+        "tip": "Title, author or ISBN. Pick format, language and year in Filters, not in the query."
       },
       {
         "key": "googlesearch",
@@ -88,7 +98,16 @@
         "mirrors": [
           "https://cse.google.com"
         ],
-        "media": "book"
+        "media": "book",
+        "tip": "Searches the web for files. Quotes keep words together: \"the old man and the sea\".",
+        "modes": {
+          "author": {
+            "query": "\"{Q}\""
+          },
+          "title": {
+            "query": "\"{Q}\""
+          }
+        }
       },
       {
         "key": "booksee",
@@ -101,7 +120,8 @@
         "mirrors": [
           "https://en.booksee.org"
         ],
-        "media": "book"
+        "media": "book",
+        "tip": "Title or author. Short queries work best."
       },
       {
         "key": "ebookHunter",
@@ -114,7 +134,8 @@
         "mirrors": [
           "https://ebook-hunter.org"
         ],
-        "media": "book"
+        "media": "book",
+        "tip": "Title or author. Short queries work best."
       },
       {
         "key": "pdfRoom",
@@ -127,7 +148,8 @@
         "mirrors": [
           "https://pdfroom.com"
         ],
-        "media": "book"
+        "media": "book",
+        "tip": "Title or topic, for free PDFs."
       },
       {
         "key": "libgenGs",
@@ -144,7 +166,44 @@
           "https://libgen.la",
           "https://libgen.bz"
         ],
-        "media": "book"
+        "media": "book",
+        "tip": "Title, author or ISBN. Pick format, language and year in Filters, not in the query.",
+        "modes": {
+          "author": {
+            "path": "/index.php?req={SEARCH_QUERY}&columns%5B%5D=a&objects%5B%5D=f&topics%5B%5D=l&topics%5B%5D=c&topics%5B%5D=f&topics%5B%5D=a&topics%5B%5D=m&topics%5B%5D=r&topics%5B%5D=s&res=50&covers=on&showch=on&filesuns=all&curtab=f&order=year&ordermode=desc"
+          },
+          "title": {
+            "path": "/index.php?req={SEARCH_QUERY}&columns%5B%5D=t&objects%5B%5D=f&topics%5B%5D=l&topics%5B%5D=c&topics%5B%5D=f&topics%5B%5D=a&topics%5B%5D=m&topics%5B%5D=r&topics%5B%5D=s&res=50&covers=on&showch=on&filesuns=all&curtab=f&order=year&ordermode=desc"
+          },
+          "isbn": {
+            "path": "/index.php?req={SEARCH_QUERY}&columns%5B%5D=i&objects%5B%5D=f&topics%5B%5D=l&topics%5B%5D=c&topics%5B%5D=f&topics%5B%5D=a&topics%5B%5D=m&topics%5B%5D=r&topics%5B%5D=s&res=50&covers=on&showch=on&filesuns=all&curtab=f&order=year&ordermode=desc"
+          }
+        }
+      },
+      {
+        "key": "openlibrary",
+        "title": "Open Library",
+        "enabled": true,
+        "parser": "native",
+        "base_url": "https://openlibrary.org",
+        "search_path": "/search.json?q={SEARCH_QUERY}",
+        "direct_download": false,
+        "media": "book",
+        "mirrors": [
+          "https://openlibrary.org"
+        ],
+        "tip": "Understands author:, title:, subject: and language:eng. The app adds these for you in Author, Title and ISBN mode.",
+        "modes": {
+          "author": {
+            "query": "author:\"{Q}\""
+          },
+          "title": {
+            "query": "title:\"{Q}\""
+          },
+          "isbn": {
+            "query": "isbn:{Q}"
+          }
+        }
       },
       {
         "key": "goldenaudiobook",
@@ -157,7 +216,8 @@
         "mirrors": [
           "https://goldenaudiobook.net"
         ],
-        "media": "audio"
+        "media": "audio",
+        "tip": "Matches post titles: the book's title or the author's name works best."
       },
       {
         "key": "ravebooksearch",
@@ -171,7 +231,8 @@
           "https://ravebooksearch.com",
           "https://ravebooksearch.cloudflare-s3cvv.workers.dev"
         ],
-        "media": "book"
+        "media": "book",
+        "tip": "Title or author."
       },
       {
         "key": "magazinelib",
@@ -184,7 +245,8 @@
         "media": "magazine",
         "mirrors": [
           "https://magazinelib.com"
-        ]
+        ],
+        "tip": "Every word must appear, so keep it short. \"vogue -uk\" leaves out UK issues. Months and years work: \"forbes 2026\"."
       }
     ],
     "try_searches": [
@@ -243,6 +305,61 @@
         "label": "Engineering",
         "ol_subject": "engineering"
       }
+    ],
+    "tips": [
+      {
+        "id": "title_author",
+        "icon": "book",
+        "title": "Title + author's last name",
+        "body": "Drop subtitles, editions and words like \"pdf\" or \"free\". Fewer words find more.",
+        "example": "pride and prejudice austen"
+      },
+      {
+        "id": "author",
+        "icon": "user",
+        "title": "All books by an author",
+        "body": "Type the name, then pick Author above the keyboard.",
+        "example": "agatha christie",
+        "mode": "author"
+      },
+      {
+        "id": "isbn",
+        "icon": "scan",
+        "title": "Exact edition: the ISBN",
+        "body": "13 digits, no dashes. Or scan the barcode.",
+        "example": "9780141439518",
+        "mode": "isbn"
+      },
+      {
+        "id": "audiobooks",
+        "icon": "headphones",
+        "title": "Audiobooks",
+        "body": "Type just the title, then pick Audiobooks in the results. No need to add \"audiobook\".",
+        "example": "the hobbit",
+        "media": "audio"
+      },
+      {
+        "id": "magazines",
+        "icon": "magazine",
+        "title": "Magazines",
+        "body": "Name + month or year. Every word has to match, so keep it short. Add -word to leave an edition out.",
+        "example": "national geographic 2026",
+        "media": "magazine"
+      }
+    ],
+    "noise_words": [
+      "free",
+      "pdf",
+      "epub",
+      "mobi",
+      "download",
+      "ebook",
+      "e-book",
+      "full",
+      "book",
+      "online",
+      "read",
+      "novel"
     ]
   },
   "magazines": {
