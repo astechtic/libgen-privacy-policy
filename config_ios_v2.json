@@ -12,7 +12,7 @@
     "gates": {
       "cooldown_minutes": 0,
       "search": {
-        "enabled": false,
+        "enabled": true,
         "every": 1
       },
       "book_details": {
@@ -20,11 +20,11 @@
         "every": 1
       },
       "links": {
-        "enabled": false,
+        "enabled": true,
         "unlock_minutes": 30
       },
       "reader": {
-        "enabled": false,
+        "enabled": true,
         "every": 1
       },
       "library": {
