@@ -196,5 +196,10 @@
   "magazines": {
     "home_enabled": false,
     "image_proxy": "https://i0.wp.com/{url}?w=360"
+  },
+  "notifications": {
+    "push_endpoint": "https://libgenpush.duckdns.org/v1/register",
+    "pro_upsell_daily": false,
+    "new_books_daily": false
   }
 }
