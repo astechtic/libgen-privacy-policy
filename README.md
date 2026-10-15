@@ -1,7 +1,7 @@
 # Libgen Privacy Policy
 
 **Effective Date:** August 7, 2026
-**Last Updated:** August 7, 2026
+**Last Updated:** October 15, 2026
 
 ---
 
@@ -57,7 +57,8 @@ We may collect anonymous analytics information including:
 
 * App launches
 * Screen views
-* Search events
+* Search events (that a search happened and its length — not what you searched for)
+* Reading activity (minutes read, streaks, books added)
 * Feature usage
 * Session duration
 * App performance
@@ -162,7 +163,8 @@ RevenueCat may process:
 * Subscription Status
 * Purchase Receipts
 * Product Identifiers
-* Device Information necessary for purchase validation
+* Device Information necessary for purchase validation (device model, manufacturer, operating system and app version — not your device name or hardware identifiers)
+* Push notification token (to send subscription-related notifications)
 
 RevenueCat does **not** receive your payment card information.
 
@@ -268,7 +270,58 @@ For more information:
 
 ---
 
-# 12. Push Notifications
+# 12. InMobi
+
+InMobi is an advertising partner available through Unity LevelPlay mediation.
+When it serves an advertisement, InMobi may collect:
+
+* Advertising Identifier
+* Device Information
+* IP Address
+* Approximate Location
+* Ad Interaction Data
+
+InMobi Privacy Policy:
+
+[https://www.inmobi.com/privacy-policy](https://www.inmobi.com/privacy-policy)
+
+---
+
+# 13. Product Analytics (PostHog)
+
+We use **PostHog** to understand how the App is used, alongside Firebase Analytics.
+
+PostHog may receive:
+
+* A random analytics identifier
+* App and screen events (for example: app opened, search made, book opened)
+* Device model, operating system and app version
+* Approximate country (derived from IP address)
+
+We do not send your search terms, book titles or file names to PostHog.
+
+PostHog Privacy Policy:
+
+[https://posthog.com/privacy](https://posthog.com/privacy)
+
+---
+
+# 14. Our Notification Service
+
+To decide which notifications are useful to you and when to send them, the App sends the following to our own notification server:
+
+* A random install identifier and your push notification token
+* Your anonymous RevenueCat app user ID and Pro status
+* Time zone, language and country
+* Your notification preferences
+* Reading activity: your usual reading time, reading streak, last reading day, number of books in your library, and the title and progress of the book you are reading
+* How many ads you watched in the last 7 days and when you last viewed the Pro page
+
+This data is used only to send notifications from the App. It is not sold or shared with advertisers. If you turn notifications off, the App stops sending notification preferences for those types; you can also ask us to delete this data (see Contact Us).
+
+---
+
+# 15. Push Notifications
 
 If enabled, the App may send push notifications.
 
@@ -283,7 +336,7 @@ You may disable notifications at any time in your device settings.
 
 ---
 
-# 13. External Websites
+# 16. External Websites
 
 The App may contain links to third-party websites.
 
@@ -296,7 +349,7 @@ We are not responsible for the content, availability, or privacy practices of th
 
 ---
 
-# 14. Search Results
+# 17. Search Results
 
 Libgen acts as a search and discovery application.
 
@@ -306,7 +359,7 @@ Selecting a search result may open an external webpage for additional informatio
 
 ---
 
-# 15. Data Sharing
+# 18. Data Sharing
 
 We do **not** sell your personal information.
 
@@ -330,7 +383,7 @@ Only to the extent necessary for:
 
 ---
 
-# 16. Data Retention
+# 19. Data Retention
 
 We retain information only as long as necessary to:
 
@@ -343,7 +396,7 @@ Anonymous analytics data may be retained for longer periods for statistical anal
 
 ---
 
-# 17. Security
+# 20. Security
 
 We implement reasonable technical and organizational measures designed to protect your information.
 
@@ -351,7 +404,7 @@ However, no method of electronic transmission or storage is completely secure, a
 
 ---
 
-# 18. Children's Privacy
+# 21. Children's Privacy
 
 The App is not specifically directed toward children under the age of 13.
 
@@ -361,7 +414,7 @@ If you believe a child has provided us with personal information, please contact
 
 ---
 
-# 19. Your Privacy Rights
+# 22. Your Privacy Rights
 
 Depending on your country or region, you may have the right to:
 
@@ -376,7 +429,7 @@ To exercise these rights, contact us using the information below.
 
 ---
 
-# 20. International Data Transfers
+# 23. International Data Transfers
 
 Your information may be processed and stored on servers located outside your country of residence.
 
@@ -384,7 +437,7 @@ By using the App, you consent to such transfers where permitted by applicable la
 
 ---
 
-# 21. Changes to This Privacy Policy
+# 24. Changes to This Privacy Policy
 
 We may update this Privacy Policy from time to time.
 
@@ -397,7 +450,7 @@ Continued use of the App after changes become effective constitutes acceptance o
 
 ---
 
-# 22. Contact Us
+# 25. Contact Us
 
 If you have any questions about this Privacy Policy, you may contact us:
 
