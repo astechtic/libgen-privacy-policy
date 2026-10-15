@@ -4,7 +4,7 @@
     "min_supported_version": "0.2.0"
   },
   "rollout": {
-    "ads_rules_v3": 20
+    "ads_rules_v3": 100
   },
   "ads": {
     "unlock_sheet_enabled": true,
@@ -12,7 +12,7 @@
     "gates": {
       "cooldown_minutes": 0,
       "search": {
-        "enabled": false,
+        "enabled": true,
         "every": 1
       },
       "book_details": {
@@ -20,11 +20,11 @@
         "every": 1
       },
       "links": {
-        "enabled": false,
+        "enabled": true,
         "unlock_minutes": 30
       },
       "reader": {
-        "enabled": false,
+        "enabled": true,
         "every": 1
       },
       "library": {
