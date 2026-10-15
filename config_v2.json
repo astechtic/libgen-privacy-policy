@@ -4,7 +4,7 @@
     "min_supported_version": "0.2.0"
   },
   "rollout": {
-    "ads_rules_v3": 20
+    "ads_rules_v3": 100
   },
   "ads": {
     "unlock_sheet_enabled": true,
