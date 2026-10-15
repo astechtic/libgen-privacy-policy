@@ -56,7 +56,7 @@
     "slots": []
   },
   "sponsor": {
-    "enabled": true,
+    "enabled": false,
     "name": "Searchly",
     "tagline": "Search anything, faster",
     "description": "A fast, clean search app with no clutter. Made by the same team.",
