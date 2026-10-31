@@ -344,6 +344,146 @@
           "https://magazinelib.com"
         ],
         "tip": "Every word must appear, so keep it short. \"vogue -uk\" leaves out UK issues. Months and years work: \"forbes 2026\"."
+      },
+      {
+        "key": "mangadex",
+        "title": "MangaDex",
+        "enabled": true,
+        "parser": "kotatsu",
+        "kotatsu_source": "MANGADEX",
+        "base_url": "https://mangadex.org",
+        "direct_download": false,
+        "media": "manga",
+        "mirrors": [
+          "https://mangadex.org"
+        ],
+        "tip": "Big multi-language library with official and fan translations. Search by title in any language: \"one piece\", \"kimetsu no yaiba\"."
+      },
+      {
+        "key": "webtoons_en",
+        "title": "Webtoons",
+        "enabled": true,
+        "parser": "kotatsu",
+        "kotatsu_source": "WEBTOONS_EN",
+        "base_url": "https://webtoons.com",
+        "direct_download": false,
+        "media": "manga",
+        "mirrors": [
+          "https://webtoons.com"
+        ],
+        "tip": "Official Webtoons originals and canvas series. Search the series name: \"tower of god\", \"lore olympus\"."
+      },
+      {
+        "key": "mangapill",
+        "title": "MangaPill",
+        "enabled": true,
+        "parser": "kotatsu",
+        "kotatsu_source": "MANGAPILL",
+        "base_url": "https://mangapill.com",
+        "direct_download": false,
+        "media": "manga",
+        "mirrors": [
+          "https://mangapill.com"
+        ],
+        "tip": "Fast English scans of popular manga. Short titles work best: \"jujutsu\", \"chainsaw man\"."
+      },
+      {
+        "key": "mangakatana",
+        "title": "MangaKatana",
+        "enabled": true,
+        "parser": "kotatsu",
+        "kotatsu_source": "MANGAKATANA",
+        "base_url": "https://mangakatana.com",
+        "direct_download": false,
+        "media": "manga",
+        "mirrors": [
+          "https://mangakatana.com"
+        ],
+        "tip": "Large English catalogue including older and finished series."
+      },
+      {
+        "key": "mangatown",
+        "title": "MangaTown",
+        "enabled": true,
+        "parser": "kotatsu",
+        "kotatsu_source": "MANGATOWN",
+        "base_url": "https://www.mangatown.com",
+        "direct_download": false,
+        "media": "manga",
+        "mirrors": [
+          "https://www.mangatown.com"
+        ],
+        "tip": "Long-running English manga site with many completed series."
+      },
+      {
+        "key": "atsumoe",
+        "title": "Atsu.moe",
+        "enabled": true,
+        "parser": "kotatsu",
+        "kotatsu_source": "ATSUMOE",
+        "base_url": "https://atsu.moe",
+        "direct_download": false,
+        "media": "manga",
+        "mirrors": [
+          "https://atsu.moe"
+        ],
+        "tip": "Clean English library of popular manga with quick chapter loading."
+      },
+      {
+        "key": "weebcentral",
+        "title": "Weeb Central",
+        "enabled": true,
+        "parser": "kotatsu",
+        "kotatsu_source": "WEEBCENTRAL",
+        "base_url": "https://weebcentral.com",
+        "direct_download": false,
+        "media": "manga",
+        "mirrors": [
+          "https://weebcentral.com"
+        ],
+        "tip": "English scans with fast updates."
+      },
+      {
+        "key": "mangafire",
+        "title": "MangaFire",
+        "enabled": true,
+        "parser": "kotatsu",
+        "kotatsu_source": "MANGAFIRE_EN",
+        "base_url": "https://mangafire.to",
+        "direct_download": false,
+        "media": "manga",
+        "mirrors": [
+          "https://mangafire.to"
+        ],
+        "tip": "Huge English catalogue of manga, manhwa and manhua."
+      },
+      {
+        "key": "asurascans",
+        "title": "Asura Scans",
+        "enabled": true,
+        "parser": "kotatsu",
+        "kotatsu_source": "ASURASCANS",
+        "base_url": "https://asurascans.com",
+        "direct_download": false,
+        "media": "manga",
+        "mirrors": [
+          "https://asurascans.com"
+        ],
+        "tip": "Popular manhwa scanlation group."
+      },
+      {
+        "key": "flamecomics",
+        "title": "Flame Comics",
+        "enabled": true,
+        "parser": "kotatsu",
+        "kotatsu_source": "FLAMECOMICS",
+        "base_url": "https://flamecomics.xyz",
+        "direct_download": false,
+        "media": "manga",
+        "mirrors": [
+          "https://flamecomics.xyz"
+        ],
+        "tip": "Manhwa scanlation group with frequent releases."
       }
     ],
     "try_searches": [
@@ -462,6 +602,11 @@
   "magazines": {
     "home_enabled": true,
     "image_proxy": "https://i0.wp.com/{url}?w=360"
+  },
+  "manga": {
+    "details_banner": true,
+    "reader_interstitial": true,
+    "reader_interstitial_min_sec": 300
   },
   "notifications": {
     "push_endpoint": "https://libgenpush.duckdns.org/v1/register",
