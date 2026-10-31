@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<!-- parser-version: 1 -->
+<!-- parser-version: 2 -->
 <html>
 
 <head>
@@ -905,6 +905,292 @@
         }
     }
 
+    // Shared helpers for the document-site parsers below (SlideShare, Scribd,
+    // Studocu, WeLib). All four are search-and-link sources (`isDdl: true`):
+    // a result opens the site's own page in the browser.
+    const DocSearch = {
+        clean: s => String(s ?? '').replace(/\s+/g, ' ').trim(),
+        abs: (href, base) => { try { return href ? new URL(href, base).toString() : ''; } catch { return ''; } },
+        siteData(siteDataArg) {
+            const siteData = typeof siteDataArg === 'string' ? JSON.parse(siteDataArg) : siteDataArg;
+            const { primarySource, searchPath } = siteData || {};
+            if (!primarySource || !searchPath) throw new Error('Invalid site data: missing primarySource or searchPath');
+            return siteData;
+        },
+        searchUrl(siteData, query) {
+            return new URL(siteData.searchPath.replace('{SEARCH_QUERY}', encodeURIComponent(query)), siteData.primarySource).toString();
+        },
+        async get(url, timeoutMs) {
+            const res = await window.flutter_inappwebview.callHandler('curlRequest', {
+                url, method: 'GET', runInIsolate: true, ...(timeoutMs ? { timeoutMs } : {})
+            });
+            if (!res || res.statusCode !== 200 || !res.data) {
+                console.warn(`Request failed with status code: ${res?.statusCode} (${url})`);
+                return null;
+            }
+            return decodeBase64UTF8(res.data);
+        },
+        // JSON straight from an API, or JSON embedded in an HTML page (when
+        // the WebView hands back the rendered document instead).
+        parseJson(text) {
+            if (!text) return null;
+            try { return JSON.parse(text); } catch {}
+            try {
+                const doc = new DOMParser().parseFromString(text, 'text/html');
+                const pre = doc.querySelector('pre');
+                if (pre) return JSON.parse(pre.textContent);
+                const next = doc.querySelector('script#__NEXT_DATA__');
+                if (next) return JSON.parse(next.textContent);
+            } catch {}
+            return null;
+        },
+        // Depth-first walk collecting objects that satisfy `pred`.
+        collect(root, pred, out = [], depth = 0) {
+            if (!root || typeof root !== 'object' || depth > 14) return out;
+            if (Array.isArray(root)) { for (const v of root) DocSearch.collect(v, pred, out, depth + 1); return out; }
+            if (pred(root)) { out.push(root); return out; }
+            for (const v of Object.values(root)) DocSearch.collect(v, pred, out, depth + 1);
+            return out;
+        },
+        firstString(...vals) {
+            for (const v of vals) {
+                if (typeof v === 'string' && v.trim()) return v.trim();
+                if (v && typeof v === 'object' && typeof v.name === 'string') return v.name.trim();
+            }
+            return '';
+        },
+        titleOnlyInfo(resData, url) {
+            let title = '';
+            try {
+                const document = new DOMParser().parseFromString(decodeBase64UTF8(resData), 'text/html');
+                title = DocSearch.clean(document.querySelector('title')?.textContent);
+            } catch {}
+            return { title, author: '', publisher: '', info: '', thumbnail: '', description: '',
+                     link: url, bookIdMD5: url, mirrors: [url] };
+        },
+    };
+
+    // SlideShare: public GraphQL API (no bot check). POST needs the bridge's
+    // headers/body pass-through.
+    class SlideShare {
+        static get endpoint() { return 'https://api.slidesharecdn.com/graphql'; }
+        static get gql() {
+            return `query ($query: String!, $language: String, $period: Period, $sort: Sort, $first: Int) {
+  search { slideshows(query: $query, language: $language, period: $period, sort: $sort, first: $first) {
+    edges { node { ... on Slideshow { type id title thumbnail canonicalUrl user { login name } views totalSlides } } }
+    totalCount } } }`;
+        }
+
+        async searchBooks(query, siteDataArg) {
+            if (!query || !siteDataArg) throw new Error('Invalid input: query and siteDataArg are required');
+            const res = await window.flutter_inappwebview.callHandler('curlRequest', {
+                url: SlideShare.endpoint,
+                method: 'POST',
+                runInIsolate: true,
+                timeoutMs: 12000,
+                headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                body: JSON.stringify({
+                    query: SlideShare.gql,
+                    variables: { query, first: 30, sort: 'RELEVANT', period: 'ANYTIME', language: 'en' },
+                    locale: 'en',
+                }),
+            });
+            if (!res || res.statusCode !== 200 || !res.data) {
+                console.warn(`SlideShare: request failed with status code: ${res?.statusCode}`);
+                return [];
+            }
+            const data = DocSearch.parseJson(decodeBase64UTF8(res.data));
+            const edges = data?.data?.search?.slideshows?.edges || [];
+            const { clean } = DocSearch;
+            const books = [];
+            const seen = new Set();
+            for (const e of edges) {
+                const n = e?.node || {};
+                const title = clean(n.title);
+                const link = clean(n.canonicalUrl);
+                if (!title || !link || seen.has(link)) continue;
+                seen.add(link);
+                const parts = [];
+                if (n.type) parts.push(`type: ${clean(n.type).toUpperCase()}`);
+                if (n.totalSlides) parts.push(`pages: ${n.totalSlides}`);
+                if (n.views) parts.push(`views: ${n.views}`);
+                books.push({
+                    title,
+                    author: clean(n.user?.name || n.user?.login),
+                    image: clean(n.thumbnail),
+                    link,
+                    bookIdMD5: clean(n.id) || link,
+                    publisher: 'SlideShare',
+                    info: parts.join(' · '),
+                    source: 'slideshare',
+                });
+            }
+            return books;
+        }
+
+        getBookInfo(resData, url, baseUrl) { return DocSearch.titleOnlyInfo(resData, url); }
+    }
+
+    // Scribd: GET /search/query?query=… returns JSON with the hits at
+    // results.documents.content.documents[]. The host sits behind Fastly's
+    // client challenge, so the config marks it `gated` (served by the
+    // solver WebView).
+    class Scribd {
+        async searchBooks(query, siteDataArg) {
+            if (!query || !siteDataArg) throw new Error('Invalid input: query and siteDataArg are required');
+            const siteData = DocSearch.siteData(siteDataArg);
+            const text = await DocSearch.get(DocSearch.searchUrl(siteData, query), 14000);
+            const data = DocSearch.parseJson(text);
+            if (!data) return [];
+            const { clean, abs, firstString } = DocSearch;
+            let docs = data?.results?.documents?.content?.documents;
+            if (!Array.isArray(docs)) {
+                docs = DocSearch.collect(data, o => typeof o.title === 'string' &&
+                    typeof (o.url || o.reader_url) === 'string' && /scribd\.com\/|^\/(document|book|presentation)\//.test(o.url || o.reader_url));
+            }
+            const books = [];
+            const seen = new Set();
+            for (const d of docs) {
+                const title = clean(d.title);
+                const link = abs(firstString(d.url, d.reader_url, d.document_url), siteData.primarySource);
+                if (!title || !link || seen.has(link)) continue;
+                seen.add(link);
+                const parts = [];
+                const type = firstString(d.type, d.document_type);
+                if (type) parts.push(`type: ${clean(type).toUpperCase()}`);
+                const pages = d.page_count ?? d.pageCount;
+                if (pages) parts.push(`pages: ${pages}`);
+                const views = d.views ?? d.reads_count;
+                if (views) parts.push(`views: ${views}`);
+                books.push({
+                    title,
+                    author: clean(firstString(d.author, d.authors?.[0], d.user, d.uploader)),
+                    image: abs(firstString(d.image_url, d.thumbnail_url, d.thumbnail, d.cover_url), siteData.primarySource),
+                    link,
+                    bookIdMD5: clean(d.id) || link,
+                    publisher: 'Scribd',
+                    info: parts.join(' · '),
+                    source: 'scribd',
+                });
+            }
+            return books;
+        }
+
+        getBookInfo(resData, url, baseUrl) { return DocSearch.titleOnlyInfo(resData, url); }
+    }
+
+    // Studocu: /in/search/<q> HTML. Reads the embedded Next.js data when
+    // present, else falls back to /document/ links in the DOM. Gated.
+    class Studocu {
+        async searchBooks(query, siteDataArg) {
+            if (!query || !siteDataArg) throw new Error('Invalid input: query and siteDataArg are required');
+            const siteData = DocSearch.siteData(siteDataArg);
+            const base = siteData.primarySource;
+            const html = await DocSearch.get(DocSearch.searchUrl(siteData, query), 14000);
+            if (!html) return [];
+            const { clean, abs, firstString } = DocSearch;
+            const books = [];
+            const seen = new Set();
+            const push = (title, link, image, author, publisher, info) => {
+                title = clean(title);
+                link = String(link || '').split(/[?#]/)[0]; // drop queryID/origin tracking
+                if (!title || !link || seen.has(link)) return;
+                seen.add(link);
+                books.push({ title, author: clean(author), image: clean(image), link, bookIdMD5: link,
+                             publisher: clean(publisher) || 'Studocu', info: clean(info), source: 'studocu' });
+            };
+
+            const document = new DOMParser().parseFromString(html, 'text/html');
+            const nextData = DocSearch.parseJson(document.querySelector('script#__NEXT_DATA__')?.textContent || '');
+            if (nextData) {
+                const docs = DocSearch.collect(nextData, o => typeof o.title === 'string' &&
+                    typeof (o.url || o.slug) === 'string' && /\/document\//.test(o.url || '') );
+                for (const d of docs) {
+                    const parts = [];
+                    if (d.pageCount || d.page_count) parts.push(`pages: ${d.pageCount || d.page_count}`);
+                    const kind = firstString(d.category, d.documentType, d.type);
+                    if (kind) parts.push(`type: ${kind}`);
+                    push(d.title, abs(d.url, base),
+                         firstString(d.thumbnailUrl, d.thumbnail, d.imageUrl),
+                         firstString(d.user, d.author),
+                         firstString(d.course, d.institution, d.university),
+                         parts.join(' · '));
+                }
+            }
+            if (!books.length) {
+                for (const a of document.querySelectorAll('a[href*="/document/"]')) {
+                    const link = abs(a.getAttribute('href'), base);
+                    const card = a.closest('article, li, [class*="card" i], [class*="Card"]') || a;
+                    const title = a.getAttribute('title') || a.querySelector('h2, h3, h4')?.textContent || a.textContent;
+                    const img = card.querySelector('img');
+                    push(title, link, abs(img?.getAttribute('src') || img?.getAttribute('data-src') || '', base), '', '', '');
+                }
+            }
+            return books;
+        }
+
+        getBookInfo(resData, url, baseUrl) { return DocSearch.titleOnlyInfo(resData, url); }
+    }
+
+    // WeLib (welib.org = welib.st): Anna's-Archive-style search page behind
+    // Cloudflare. Tries Anna's results table first, then generic result
+    // links (/md5/, /book/, /item/). Gated.
+    class WeLib {
+        async searchBooks(query, siteDataArg) {
+            if (!query || !siteDataArg) throw new Error('Invalid input: query and siteDataArg are required');
+            const siteData = DocSearch.siteData(siteDataArg);
+            const base = siteData.primarySource;
+            const html = await DocSearch.get(DocSearch.searchUrl(siteData, query), 14000);
+            if (!html) return [];
+            const { clean, abs } = DocSearch;
+            const document = new DOMParser().parseFromString(html.replace(/<!--[\s\S]*?-->/g, ''), 'text/html');
+            const books = [];
+            const seen = new Set();
+            const push = (b) => {
+                if (!b.title || !b.link || seen.has(b.link)) return;
+                seen.add(b.link);
+                const m = b.link.match(/[a-f0-9]{32}/i);
+                books.push({ author: '', image: '', publisher: '', info: '', ...b,
+                             bookIdMD5: m ? m[0].toLowerCase() : b.link, source: 'welib' });
+            };
+
+            const table = document.querySelector('table.text-sm.w-full.mt-4.h-fit');
+            if (table) {
+                for (const tr of table.querySelectorAll('tr')) {
+                    const tds = tr.querySelectorAll('td');
+                    if (!tds.length) continue;
+                    const txt = i => clean(tds[i]?.textContent);
+                    const parts = [];
+                    if (txt(4)) parts.push(`year: ${txt(4)}`);
+                    if (txt(7)) parts.push(`language: ${txt(7)}`);
+                    if (txt(9)) parts.push(`type: ${txt(9)}`);
+                    if (txt(10)) parts.push(`size: ${txt(10)}`);
+                    push({
+                        title: txt(1),
+                        link: abs(tds[0]?.querySelector('a[href]')?.getAttribute('href'), base),
+                        image: abs(tds[0]?.querySelector('img')?.getAttribute('src'), base),
+                        author: txt(2), publisher: txt(3), info: parts.join(' · '),
+                    });
+                }
+            }
+            if (!books.length) {
+                for (const a of document.querySelectorAll('a[href*="/md5/"], a[href*="/book/"], a[href*="/item/"]')) {
+                    const link = abs(a.getAttribute('href'), base);
+                    const card = a.closest('article, li, tr, [class*="result" i], [class*="card" i]') || a;
+                    const title = clean(card.querySelector('h1, h2, h3, h4, [class*="title" i]')?.textContent || a.textContent);
+                    if (!title || title.length < 2) continue;
+                    const img = card.querySelector('img');
+                    const author = clean(card.querySelector('[class*="author" i], .italic')?.textContent);
+                    const meta = clean(card.querySelector('[class*="meta" i], .text-gray-500, .text-xs')?.textContent);
+                    push({ title, link, author, info: meta,
+                           image: abs(img?.getAttribute('src') || img?.getAttribute('data-src') || '', base) });
+                }
+            }
+            return books;
+        }
+
+        getBookInfo(resData, url, baseUrl) { return DocSearch.titleOnlyInfo(resData, url); }
+    }
 
 
     class EbookHunter {

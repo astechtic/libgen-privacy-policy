@@ -271,6 +271,67 @@
         "tip": "Title or author."
       },
       {
+        "key": "welib",
+        "title": "WeLib",
+        "enabled": false,
+        "parser": "WeLib",
+        "base_url": "https://welib.org",
+        "search_path": "/search?q={SEARCH_QUERY}",
+        "direct_download": true,
+        "gated": true,
+        "mirrors": [
+          "https://welib.org",
+          "https://welib.st"
+        ],
+        "media": "book",
+        "tip": "Title, author or ISBN. The book opens on WeLib in your browser."
+      },
+      {
+        "key": "slideshare",
+        "title": "SlideShare",
+        "enabled": true,
+        "parser": "SlideShare",
+        "base_url": "https://www.slideshare.net",
+        "search_path": "/search?q={SEARCH_QUERY}",
+        "direct_download": true,
+        "mirrors": [
+          "https://www.slideshare.net",
+          "https://api.slidesharecdn.com"
+        ],
+        "media": "book",
+        "tip": "Topics and course names work best. Slide decks open on SlideShare in your browser."
+      },
+      {
+        "key": "scribd",
+        "title": "Scribd",
+        "enabled": false,
+        "parser": "Scribd",
+        "base_url": "https://www.scribd.com",
+        "search_path": "/search/query?query={SEARCH_QUERY}",
+        "direct_download": true,
+        "gated": true,
+        "mirrors": [
+          "https://www.scribd.com"
+        ],
+        "media": "book",
+        "tip": "Documents, notes and books. Results open on Scribd in your browser."
+      },
+      {
+        "key": "studocu",
+        "title": "Studocu",
+        "enabled": false,
+        "parser": "Studocu",
+        "base_url": "https://www.studocu.com",
+        "search_path": "/in/search/{SEARCH_QUERY}",
+        "direct_download": true,
+        "gated": true,
+        "mirrors": [
+          "https://www.studocu.com"
+        ],
+        "media": "book",
+        "tip": "Course, exam or subject (e.g. \"net jrf paper 1\"). Notes open on Studocu in your browser."
+      },
+      {
         "key": "magazinelib",
         "title": "MagazineLib",
         "enabled": true,
