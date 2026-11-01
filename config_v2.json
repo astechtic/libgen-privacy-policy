@@ -273,7 +273,7 @@
       {
         "key": "welib",
         "title": "WeLib",
-        "enabled": false,
+        "enabled": true,
         "parser": "WeLib",
         "base_url": "https://welib.org",
         "search_path": "/search?q={SEARCH_QUERY}",
@@ -304,7 +304,7 @@
       {
         "key": "scribd",
         "title": "Scribd",
-        "enabled": false,
+        "enabled": true,
         "parser": "Scribd",
         "base_url": "https://www.scribd.com",
         "search_path": "/search/query?query={SEARCH_QUERY}",
@@ -319,7 +319,7 @@
       {
         "key": "studocu",
         "title": "Studocu",
-        "enabled": false,
+        "enabled": true,
         "parser": "Studocu",
         "base_url": "https://www.studocu.com",
         "search_path": "/in/search/{SEARCH_QUERY}",
