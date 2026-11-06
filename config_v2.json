@@ -53,7 +53,32 @@
         "interstitial_placement": "Interstitial_ads"
       }
     },
-    "slots": []
+    "slots": [
+      {
+        "key": "maya_youtube_home",
+        "position": "BANNER_HOME_2",
+        "type": "INTERNAL",
+        "enabled": true,
+        "image": "https://storage.googleapis.com/univest-applications.appspot.com/pn_images/1793943222306_maya-youtube-banner.webp",
+        "action": "openUrl",
+        "url": "https://www.youtube.com/@arxiv-maya?sub_confirmation=1",
+        "height": 108,
+        "show_ad_tag": false,
+        "is_ad": false
+      },
+      {
+        "key": "maya_instagram_search",
+        "position": "BANNER_SEARCH",
+        "type": "INTERNAL",
+        "enabled": true,
+        "image": "https://storage.googleapis.com/univest-applications.appspot.com/pn_images/1793943221778_maya-instagram-banner.webp",
+        "action": "openUrl",
+        "url": "https://www.instagram.com/arxivmaya/",
+        "height": 108,
+        "show_ad_tag": false,
+        "is_ad": false
+      }
+    ]
   },
   "sponsor": {
     "enabled": false,
