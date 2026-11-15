@@ -7,7 +7,7 @@
     "ads_rules_v3": 100
   },
   "ads": {
-    "unlock_sheet_enabled": false,
+    "unlock_sheet_enabled": true,
     "links_unlock_mode": "per_book",
     "gates": {
       "cooldown_minutes": 0,
