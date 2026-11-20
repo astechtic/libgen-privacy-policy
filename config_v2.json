@@ -634,7 +634,7 @@
     "reader_interstitial_min_sec": 300
   },
   "notifications": {
-    "push_endpoint": "https://libgenpush.duckdns.org/v1/register",
+    "push_endpoint": "https://libgenpush.yaaratech.in/v1/register",
     "pro_upsell_daily": false,
     "new_books_daily": false
   }
