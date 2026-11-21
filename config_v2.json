@@ -637,5 +637,19 @@
     "push_endpoint": "https://libgenpush.yaaratech.in/v1/register",
     "pro_upsell_daily": false,
     "new_books_daily": false
+  },
+  "shop": {
+    "enabled": true,
+    "placements": [
+      "details",
+      "download"
+    ],
+    "ios": false,
+    "countries": {
+      "IN": {
+        "amazon": true,
+        "flipkart": false
+      }
+    }
   }
 }
