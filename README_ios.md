@@ -1,7 +1,7 @@
 # Quillshelf Privacy Policy
 
 **Effective Date:** August 7, 2026
-**Last Updated:** August 7, 2026
+**Last Updated:** November 25, 2026
 
 ---
 
@@ -17,9 +17,9 @@ By using the App, you agree to the collection and use of information in accordan
 
 # 1. About Quillshelf
 
-Quillshelf is a book discovery and search application that allows users to search publicly available book metadata and open third-party webpages for additional information.
+Quillshelf is an ebook reader. It opens the EPUB, PDF and other book files that you import yourself, and it includes free catalogues of public-domain and open-access works: Project Gutenberg, LibriVox, Open Library, arXiv and DOAJ.
 
-The App **does not host book files on its own servers**. When users choose to view more information, they may be redirected to third-party websites that are outside of our control.
+The App **does not host book files on its own servers**. Books from the built-in catalogues are downloaded directly from those services, which operate under their own terms and privacy policies.
 
 ---
 
@@ -296,13 +296,11 @@ We are not responsible for the content, availability, or privacy practices of th
 
 ---
 
-# 14. Search Results
+# 14. Built-in Catalogues
 
-Quillshelf acts as a search and discovery application.
+Search in Quillshelf covers only its built-in catalogues of public-domain and open-access works: Project Gutenberg, LibriVox, Open Library, arXiv and DOAJ.
 
-Search results may contain information obtained from publicly available third-party sources.
-
-Selecting a search result may open an external webpage for additional information.
+When you search or download, your request (for example the search words) is sent directly to the catalogue you are using. Each catalogue operates under its own terms and privacy policy.
 
 ---
 
